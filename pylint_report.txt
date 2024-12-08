@@ -1,7 +1,0 @@
-************* Module csp_solver.solver
-csp_solver\solver.py:306:1: W0511: TODO integrate arc_con (after it's right for Backtracking) (fixme)
-csp_solver\solver.py:307:1: W0511: TODO integrate extra_data (after it's right for Backtracking) (fixme)
-
-------------------------------------------------------------------
-Your code has been rated at 9.99/10 (previous run: 9.99/10, +0.00)
-
