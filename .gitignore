@@ -1,0 +1,7 @@
+.spyproject
+.pytest_cache
+.coverage
+pylint_report.txt
+*.exe
+__pycache__
+htmlcov

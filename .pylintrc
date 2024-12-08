@@ -1,0 +1,40 @@
+[BASIC]
+
+good-names-rgxs= (d)?[xy]
+
+[MAIN]
+
+load-plugins=pylint.extensions.bad_builtin,
+		pylint.extensions.broad_try_clause,
+		pylint.extensions.check_elif,
+		pylint.extensions.code_style,
+		pylint.extensions.comparetozero,
+		pylint.extensions.comparison_placement,
+		pylint.extensions.confusing_elif,
+		pylint.extensions.consider_refactoring_into_while_condition,
+		pylint.extensions.docparams,
+		pylint.extensions.docstyle,
+		pylint.extensions.dunder,
+		pylint.extensions.emptystring,
+		pylint.extensions.empty_comment,
+		pylint.extensions.eq_without_hash,
+		pylint.extensions.for_any_all,
+		pylint.extensions.magic_value,
+		pylint.extensions.mccabe,
+		pylint.extensions.no_self_use,
+		pylint.extensions.overlapping_exceptions,
+		pylint.extensions.private_import,
+		pylint.extensions.redefined_loop_name,
+		pylint.extensions.set_membership,
+		pylint.extensions.typing,
+
+
+disable=consider-using-assignment-expr
+
+
+[MAGIC-VALUE]
+
+# List of valid magic values that `magic-value-compare` will not detect.
+# Supports integers, floats, negative numbers, for empty string enter ``''``,
+# for backslash values just use one backslash e.g \n.
+valid-magic-values=0,-1,1,2,3,,__main__
