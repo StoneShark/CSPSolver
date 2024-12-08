@@ -1,0 +1,36 @@
+
+constraints ::=
+
+BoatBoundaries()
+OneOrder()
+RowSum(row, row_sum)
+ColSum(col, sol_sum)
+CellEmpty(row, col)
+BoatEnd(row, col, continue_direction)
+BoatMid(row, col)
+BoatSub(row, col)
+
+continue_direction ::= "UP" | "DOWN" | "RIGHT" | "LEFT"
+
+row ::= nbr
+col ::= nbr
+row_sum ::= nbr
+col_sum ::= nbr
+
+nbr ::= [1-9] | 10
+
+
+
+====================================================
+
+json file - duplicate keys are allowed
+
+    "RowSum" : [0, 2, 1, 3, 0, 7, 1, 4, 1, 1],
+    "ColSum" : [1, 3, 1, 3, 1, 0, 3, 0, 4, 4],
+    "EmptyCell" : [4, 2],
+    "Sumbarine" : [4, 1],
+    "BoatTop" : [4, 10]
+    "BoatBottom" : [4, 10]
+    "BoatLeft" : [4, 10]
+    "BoatRight" : [4, 10]
+    "BoatMid" : [4, 10]
