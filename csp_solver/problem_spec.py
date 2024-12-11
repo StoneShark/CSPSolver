@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Collect the constrain problem specification into a dataclass.
+"""Collect the constraint problem specification into a dataclass.
 
 Created on Thu May 18 06:23:28 2023
 @author: Ann"""
@@ -19,14 +19,18 @@ from . import variable
 
 @dc.dataclass
 class ProblemSpec:
-    """The data for the problem specification:
+    """The data for the problem specification.
 
-        variables is a dictionary var_name : var_obj
+    Data class fields include:
+        variables is a dictionary of var_name: var_obj.
 
-        contraints is a list of constraint.
+        contraints is a list of constraints.
 
         cnstr_dict is a dictionary created before calling the solver
-           var_name : constraints"""
+        which supports lookup of constraints which use a particular
+        variable:
+           var_name : constraints with var in them
+    """
 
     variables: dict = dc.field(default_factory=dict)
 

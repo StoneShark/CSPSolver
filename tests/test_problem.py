@@ -9,13 +9,27 @@
 import pytest
 
 import csp_solver as csp
+from csp_solver import arc_consist
 from csp_solver import constraint as cnstr
+from csp_solver import extra_data
 from csp_solver import list_constraint as lcnstr
 from csp_solver import solver
 from csp_solver import var_chooser
 
 
+# %%  support classes
+
+class ExtraData(extra_data.ExtraDataIF):
+    """A class that meet the IF but does nothing"""
+    def assign(self, var, val):
+        pass
+
+    def pop():
+        pass
+
+
 # %%   test Problem
+
 
 class TestProblem:
 
@@ -24,39 +38,65 @@ class TestProblem:
 
         test_prob = csp.Problem()
 
+        # check default properties and names
+        assert 'Backtracking' in str(test_prob.solver)
+        assert 'DegreeDomain' in str(test_prob.var_chooser)
+        assert not test_prob.forward_check
+        assert not test_prob.extra_data
+        assert not test_prob.arc_con
+
+        assert test_prob.solver_name() == 'Backtracking'
+        assert test_prob.var_chooser_name() == 'DegreeDomain'
+        assert test_prob.arc_con_name() == None
+
         test_prob.add_variable('a', [1,2,3,4])
         assert test_prob._spec.variables['a'].get_domain() == [1,2,3,4]
 
+        # add a dupl variable
         with pytest.raises(ValueError):
             test_prob.add_variable('a', [1,2,3,4])
 
+        # add a bunch of vars all with same domain
         test_prob.add_variables('bcd', [False, True])
         assert test_prob._spec.variables['b'].get_domain() == [False, True]
         assert test_prob._spec.variables['c'].get_domain() == [False, True]
         assert test_prob._spec.variables['d'].get_domain() == [False, True]
 
+        # add a bad constraint
         with pytest.raises(ValueError):
             test_prob.add_constraint(5, 'ab')
 
+        # test converting lambda to a BoolFunction constraint
         test_prob.add_constraint(lambda a : a == 5, 'd')
         assert isinstance(test_prob._spec.constraints[0],
                           cnstr.BoolFunction)
 
+        # test reusing a constraint -- bad
+        con = cnstr.AllDifferent()
+        test_prob.add_constraint(con, 'ab')
+        with pytest.raises(ValueError):
+            test_prob.add_constraint(con, 'de')
+
+        # add a valid list constraint
         test_prob.add_list_constraint(lcnstr.AtLeastNCList(2, False),
                                     [(lambda a, b : a*2 == b, 'ab'),
                                      (cnstr.MaxSum(4), 'abc'),
                                      (cnstr.AllDifferent(), 'ad')] )
-        assert isinstance(test_prob._spec.constraints[1],
+        assert isinstance(test_prob._spec.constraints[2],
                           lcnstr.ListConstraint)
 
-        assert test_prob.solver_name() == 'Backtracking'
-        assert test_prob.var_chooser_name() == 'DegreeDomain'
+        # test adding a list constraint with only 1 constraint -- bad
+        with pytest.raises(ValueError):
+            test_prob.add_list_constraint(lcnstr.AtLeastNCList(2, False),
+                                        [(lambda a, b : a*2 == b, 'ab')] )
 
+        # test adding a list constraint where constraint isn't a list con
         with pytest.raises(ValueError):
             test_prob.add_list_constraint(cnstr.MaxSum(4),
                                         [(lambda a, b : a*2 == b, 'ab'),
                                          (cnstr.AllDifferent(), 'ad')] )
 
+        # test adding a list constraint where constraint isn't a list con
         with pytest.raises(ValueError):
             test_prob.add_list_constraint('not a list constraint',
                                         [(lambda a, b : a*2 == b, 'ab'),
@@ -74,6 +114,57 @@ class TestProblem:
 
         with pytest.raises(ValueError):
             test_prob._spec.natural_numbers_required()
+
+
+    def test_setters(self):
+        """exercise the error checking and setting of properties
+        into the solver."""
+
+        test_prob = csp.Problem()
+
+        assert 'Backtracking' in str(test_prob.solver)
+        assert 'DegreeDomain' in str(test_prob._solver.chooser)
+        assert not test_prob._solver.forward
+        assert not test_prob._solver.extra
+        assert not test_prob._solver.arc_con
+
+        test_prob.var_chooser = var_chooser.UseFirst
+        assert test_prob.var_chooser == var_chooser.UseFirst
+        assert test_prob._solver.chooser == var_chooser.UseFirst
+
+        test_prob.forward_check = True
+        assert test_prob.forward_check
+        assert test_prob._solver.forward
+
+        with pytest.raises(ValueError):
+            test_prob.extra_data = 5
+
+        test_prob.extra_data = ExtraData()
+        assert isinstance(test_prob._solver.extra, ExtraData)
+
+        with pytest.raises(ValueError):
+            test_prob.arc_con = 5
+
+        test_prob.arc_con = arc_consist.ArcCon3()
+        assert isinstance(test_prob._solver.arc_con, arc_consist.ArcCon3)
+
+        with pytest.raises(ValueError):
+            test_prob.solver = 5
+
+        # constructed with defaults
+        new_solver = solver.NonRecBacktracking()
+        assert 'DegreeDomain' in str(new_solver.chooser)
+        assert not new_solver.forward
+        assert not new_solver.extra
+        assert not new_solver.arc_con
+
+        test_prob.solver = new_solver
+
+        # test that all updates were copied into new solver
+        assert test_prob._solver.chooser == var_chooser.UseFirst
+        assert test_prob._solver.forward
+        assert isinstance(test_prob._solver.extra, ExtraData)
+        assert isinstance(test_prob._solver.arc_con, arc_consist.ArcCon3)
 
 
     @pytest.fixture
@@ -185,9 +276,26 @@ class TestProblem:
         math_two_fixt.solver = slvr
         solutions = math_two_fixt.get_all_solutions()
 
+        assert len(solutions) == 3
         assert all(sol['a'] == 2 for sol in solutions)
         assert all(sol['c'] == 10 for sol in solutions)
 
         assert {sol['b'] for sol in solutions} == {6, 8, 9}
 
         math_two_fixt.print_domains()
+
+
+    @pytest.mark.parametrize('slvr', [solver.Backtracking(),
+                                      solver.NonRecBacktracking()])
+    def test_math_two_gr_one(self, math_two_fixt, slvr):
+        """Solve the same problem again with more_than_one_solution,
+        stops when the second solution is found."""
+
+        math_two_fixt.enable_forward_check()
+        math_two_fixt.solver = slvr
+
+        # check setting solver didn't clear forward_check
+        assert math_two_fixt.forward_check
+        solutions = math_two_fixt.more_than_one_solution()
+
+        assert len(solutions) == 2
