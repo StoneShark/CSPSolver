@@ -43,7 +43,7 @@ The following constraints are provided:
 - LessThan
 - LessThanEqual
 
-Four more constraints are provided to provide a full set of boolean constraints (all 16, see intro comment in cnstr_base.py). Each is of the form var1 == val1  op  var2 == val2:
+Five more constraints are provided to provide a full set of boolean constraints (all 16, see intro comment in [cnstr_binary.py](https://github.com/StoneShark/CSPSolver/blob/main/csp_solver/constraint/cnstr_binary.py). Each is of the form var1 == val1  op  var2 == val2:
 
 - NAND
 - OR
@@ -51,7 +51,7 @@ Four more constraints are provided to provide a full set of boolean constraints 
 - XOR
 - NXOR
 
-Additionally, a grouping of constraints may be applied with list constraints. These should not be used if the problem can stated without them.
+Additionally, a grouping of constraints may be applied with list constraints. The constraints are ANDed in a CSP; these constraints allow creating ORed relationships. List constraints should not be used if the problem can stated without them; they do not support preprocessing, forward checking, or arc consistency checking.
 
 - AtLeastNCList - require only a subset of the constraints be met
 - AtMostNCList - require that not all of the constraints be met
@@ -74,7 +74,7 @@ Choosing the next variable to assign can greatly improve solver time. The follow
 - MaxVarName - choose the variable with the longest variable name. It's a cheesy but easy way to control the order of variable selection.
 - MinDomain - choose the variable with the smallest remaining domain next.
 - MaxDegree - choose the variable that is used in the most constraints next.
-- DegreeDomain - select the variable with the smallest domain from those with the largest degree (most constraints).  Sort order is maximum degree then minimum domain.
+- DegreeDomain - select the variable with the smallest domain from those with the largest degree (most constraints).  Sort order is maximum degree then minimum domain. This is the default var_chooser.
 - DomainDegree - select the variable with the largest domain from those with the smalled domain. Sort order is minimum domain then maximum degree.
 - MaxAssignedNeighs - choose the variable listed in constraints along with other variables (neighbors) that have the most assigned values.
 
