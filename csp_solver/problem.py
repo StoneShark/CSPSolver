@@ -99,6 +99,7 @@ class Problem:
         """Set the arc consistency helper."""
 
         self._solver.arc_con = arc_con
+        self._solver.arc_con.set_pspec(self._spec)
 
     def arc_con_name(self):
         """Return a printable name for arc_con."""

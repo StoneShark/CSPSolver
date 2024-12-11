@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Thu Jun 22 05:30:19 2023
+"""Test the arc consistency checker with both the
+recursive backtracking solver and the
+non-recursive backtracking solver.
 
-@author: Ann
-"""
+Created on Thu Jun 22 05:30:19 2023
+@author: Ann"""
 
 
 # %% imports
@@ -65,9 +66,6 @@ class TestArcCon:
             arc_consist.ArcConIF.set_pspec(object(),
                                            csp.ProblemSpec())
 
-
-class TestArcCon3:
-
     def test_const(self):
 
         ac = arc_consist.ArcCon3()
@@ -85,12 +83,22 @@ class TestArcCon3:
             ac.set_pspec(object())
 
 
-    @pytest.fixture
-    def prob_fixt(self):
-        """Variables A - E are reduced to one value each
-        by arc consistency."""
 
-        prob = csp.Problem()
+class TestArcCon3Boris:
+    """This does detailed testing of the arc consistency
+    methods with both solvers."""
+
+    @pytest.fixture(params=[solver.Backtracking,
+                            solver.NonRecBacktracking])
+    def prob_fixt(self, request):
+        """Variables A - E are reduced to one value each
+        by arc consistency.
+
+        example from:
+            https://www.boristhebrave.com/2021/08/30/arc-consistency-explained/
+        """
+
+        prob = csp.Problem(my_solver=request.param())
 
         prob.arc_con = arc_consist.ArcCon3()
 
@@ -242,3 +250,109 @@ class TestArcCon3:
         prob_fixt._solver._arc_con._spec.variables['B'].set_domain([1])
 
         assert not prob_fixt._solver._arc_con.arc_consist([])
+
+
+
+
+PETER = 'Peter'
+PAUL = 'Paul'
+JANE = 'Jane'
+
+PEOPLE = (PETER, PAUL, JANE)
+
+SAX = 'sax'
+GUITAR = 'guitar'
+DRUMS = 'drums'
+
+F13 = '13'
+CATS = 'cats'
+HEIGHTS = 'heights'
+
+
+class TestARcCon3Forbus:
+    """This is build 3 from the forbus example:
+    from _Artificial Intelligence_, problem 3-9, Winston, p444"""
+
+    @pytest.fixture(params=[solver.Backtracking,
+                            solver.NonRecBacktracking])
+    def prob_fixt(self, request):
+
+        forbus = csp.Problem(my_solver=request.param())
+
+        forbus.arc_con = arc_consist.ArcCon3()
+
+        for name in (PETER, PAUL, JANE):
+            forbus.add_variable(f'{name}_plays', (SAX, GUITAR, DRUMS))
+            forbus.add_variable(f'{name}_fears', (F13, CATS, HEIGHTS))
+
+        forbus.add_constraint(cnstr.AllDifferent(),
+                              [f'{name}_plays' for name in PEOPLE])
+        forbus.add_constraint(cnstr.AllDifferent(),
+                              [f'{name}_fears' for name in PEOPLE])
+
+        forbus.add_constraint(cnstr.NotInValues([GUITAR]), [PETER + '_plays'])
+        forbus.add_constraint(cnstr.NotInValues([HEIGHTS]), [PETER + '_fears'])
+
+        forbus.add_constraint(cnstr.NotInValues([CATS]), [PAUL + '_fears'])
+        forbus.add_constraint(cnstr.NotInValues([SAX]), [PAUL + '_plays'])
+
+        for name in PEOPLE:
+
+            forbus.add_constraint(cnstr.Nand(GUITAR, HEIGHTS),
+                                  [f'{name}_plays', f'{name}_fears'])
+
+            forbus.add_constraint(cnstr.Nand(SAX, CATS),
+                                  [f'{name}_plays', f'{name}_fears'])
+
+            forbus.add_constraint(cnstr.Nand(DRUMS, F13),
+                                  [f'{name}_plays', f'{name}_fears'])
+
+            forbus.add_constraint(cnstr.Nand(DRUMS, HEIGHTS),
+                                  [f'{name}_plays', f'{name}_fears'])
+
+        return forbus
+
+
+    def test_ppj_steps(self, prob_fixt):
+        """Do a few special steps to test the arc_consist proc.
+        This confirms that the arc consistency will do useful work
+        in the whole problem solution (test_ppj_solves)."""
+
+        prob_fixt._spec.prepare_variables()
+
+        # confirm preprocessor didn't solve the problem
+        assert not all(var.nbr_values() == 1
+                       for var in prob_fixt._spec.variables.values())
+
+        # none of the variables are reduced to one value
+        # print('Before:')
+        for vname, vobj in prob_fixt._spec.variables.items():
+            # print(vname, vobj.get_domain())
+            assert vobj.nbr_values() > 1
+
+        # force start down the right track (this is part of the answer)
+        assigns = {'Peter_plays': DRUMS}
+
+        # confirm that the arc_consist doesn't over constrain
+        assert prob_fixt.arc_con.arc_consist(assigns)
+
+        # print('AFTER:')
+        # for vname, vobj in prob_fixt._spec.variables.items():
+        #     print(vname, vobj.get_domain())
+
+        # one pass of ArcCon3 almost solves the problem:
+        assert prob_fixt._spec.variables['Peter_plays'].nbr_values() == 2
+        assert prob_fixt._spec.variables['Paul_plays'].nbr_values() == 1
+        assert prob_fixt._spec.variables['Jane_plays'].nbr_values() == 1
+        assert prob_fixt._spec.variables['Peter_fears'].nbr_values() == 1
+        assert prob_fixt._spec.variables['Paul_fears'].nbr_values() == 1
+        assert prob_fixt._spec.variables['Jane_fears'].nbr_values() == 1
+
+
+    def test_ppj_solves(self, prob_fixt):
+
+        solution = {'Peter_plays': 'drums', 'Peter_fears': 'cats',
+                    'Paul_plays': 'guitar', 'Paul_fears': '13',
+                    'Jane_plays': 'sax', 'Jane_fears': 'heights'}
+
+        assert prob_fixt.get_solution() == solution

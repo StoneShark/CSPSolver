@@ -68,7 +68,7 @@ class TestGeneral:
         assert cnstr.AtLeastNNotIn.ARC_CONSIST_CHECK_OK == \
             ArcConCheck.CHECK_INST
 
-        assert cnstr.OneOrder.ARC_CONSIST_CHECK_OK == ArcConCheck.ALWAYS
+        assert cnstr.OneOrder.ARC_CONSIST_CHECK_OK == ArcConCheck.CHECK_INST
 
         assert cnstr.LessThan.ARC_CONSIST_CHECK_OK == ArcConCheck.ALWAYS
         assert cnstr.LessThanEqual.ARC_CONSIST_CHECK_OK == ArcConCheck.ALWAYS

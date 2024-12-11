@@ -625,6 +625,8 @@ class OneOrder(cnstr_base.Constraint):
     solutions when multiple variables represent the same kind
     of thing."""
 
+    ARC_CONSIST_CHECK_OK = cnstr_base.ArcConCheck.CHECK_INST
+
     def __repr__(self):
         return 'OneOrder()'
 

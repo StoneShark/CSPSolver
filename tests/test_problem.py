@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-"""Created on Thu May 11 08:31:07 2023
+"""Test the csp_solver.Problem class.
 
-@author: Ann
-"""
+Created on Thu May 11 08:31:07 2023
+@author: Ann"""
 
 # %% imports
 

@@ -34,6 +34,9 @@ from . import var_chooser
 
 # %% constants
 
+# these dict comprehensions generate a run-time warning
+# with cProfile included in py 3.12
+
 SOLVERS = {slvr.__name__ : slvr()
            for slvr in solver.Solver.__subclasses__()}
 
@@ -54,6 +57,7 @@ TIMEIT = 'timeit'
 
 TIMERS = ['none', PROFILE, TIMEIT_ONE, TIMEIT]
 
+STD_INDENT = '    '
 
 # %% experiments
 
@@ -318,6 +322,19 @@ def parse_args(nbr_builds):
 
 # %%  do_stuff (main)
 
+def print_doc_str(doc_str):
+    """Print the doc str removing any leading indent"""
+
+    if not doc_str:
+        return
+
+    for line in doc_str.splitlines():
+        if line[:4] == STD_INDENT:
+            print(line[4:])
+        else:
+            print(line)
+    print()
+
 
 def do_stuff(build_param, show_solution):
     """The main interface to the experimenter.
@@ -334,9 +351,8 @@ def do_stuff(build_param, show_solution):
 
     cargs = parse_args(nbr_builds)
 
-    build = build_param[cargs.build -1] if nbr_builds else build_param
-    if build.__doc__:
-        print(textwrap.fill(build.__doc__), '\n')
+    build = build_param[cargs.build - 1] if nbr_builds else build_param
+    print_doc_str(build.__doc__)
 
     if cargs.solver == ALL:
         run_the_solvers(cargs, build)

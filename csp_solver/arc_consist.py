@@ -27,7 +27,6 @@ class ArcStat(enum.Enum):
 
 # %% valid
 
-
 def valid(arc_con):
     """Return True is arc_con is an acceptable arc consistency
     helper.  Must be None (disable arc consistency) or an object
@@ -44,7 +43,6 @@ def valid(arc_con):
 
 
 # %% ArcCon interface
-
 
 class ArcConIF(abc.ABC):
     """Interface Arc Consistency Helpers."""
@@ -72,13 +70,11 @@ class ArcConIF(abc.ABC):
         True otherwise."""
 
 
-
 # %% ArcCon3
 
 class ArcCon3(ArcConIF):
     """Use the AC-3 algorithm to improve arc consistency of the
     problem."""
-
 
     def __init__(self):
 
@@ -179,7 +175,7 @@ class ArcCon3(ArcConIF):
         3. Add the just processed arc into previously processed arcs.
 
         Return False if we've overconstrained the problem (eliminated
-        all domain values for any variable), True otherwise"""
+        all domain values for any variable), True otherwise."""
 
         arcs = self._all_arcs.copy() if self._all_arcs else self._get_arcs()
         proc_arcs = {}

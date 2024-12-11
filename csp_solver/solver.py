@@ -303,7 +303,6 @@ class Backtracking(Solver):
 
 # %% non recursive backtracking
 
-# TODO integrate arc_con (after it's right for Backtracking)
 # TODO integrate extra_data (after it's right for Backtracking)
 
 class NonRecBacktracking(Solver):
@@ -391,7 +390,11 @@ class NonRecBacktracking(Solver):
             for tempv in self._unassigned:
                 tempv.push_domain()
 
-        if self._forward_check(var_name, self._assignments):
+        still_good = True
+        if self._arc_con:
+            still_good = self._arc_con.arc_consist(self._assignments)
+
+        if still_good and self._forward_check(var_name, self._assignments):
             return True
 
         if self._forward:
@@ -440,6 +443,9 @@ class NonRecBacktracking(Solver):
 
         self._spec = problem_spec
         self._nbr_variables = len(self._spec.variables)
+
+        if self._arc_con:
+            self._arc_con.set_pspec(problem_spec)
         self._solve_type = solve_type
 
         if self._solve_type == SolveType.ONE:

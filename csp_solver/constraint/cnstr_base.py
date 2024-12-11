@@ -26,6 +26,7 @@ class ArcConCheck(enum.Enum):
 
 	NEVER
 		- ListConstraint
+        - OneOrder
 		- satisfied test returns True with partial assignments (params > 2)
         e.g. it simply allows the assignments to continue
 

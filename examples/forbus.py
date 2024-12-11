@@ -160,7 +160,12 @@ def build_three(forbus):
 
 def build_four(forbus):
     """From _Artificial Intelligence_, problem 3-9, Winston, p444
-    using 2 variable sets and list constraints."""
+    using 2 variable sets and list constraints.
+
+    This is a simple example of using ListContraint.
+    The Nand solution is a better solution (build 3);
+    ListConstraints cannot be preprocessed or forward_checked.
+    """
 
     for name in (PETER, PAUL, JANE):
         forbus.add_variable(f'{name}_plays', (SAX, GUITAR, DRUMS))
@@ -178,10 +183,6 @@ def build_four(forbus):
     forbus.add_constraint(cnstr.NotInValues([SAX]), [PAUL + '_plays'])
 
     for name in (PETER, PAUL, JANE):
-
-        # this is a simple example of ListContraint
-        # the Nand solution is a better solution;
-        # ListConstraints cannot be preprocess'ed or forward_check'ed
 
         forbus.add_list_constraint(lcnstr.OrCList(),
             [(cnstr.NotInValues([GUITAR]), [f'{name}_plays']),
