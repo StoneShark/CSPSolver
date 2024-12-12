@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Fri Jun 23 06:00:37 2023
+"""Test the base constraint classes.
 
-@author: Ann
-"""
+Created on Fri Jun 23 06:00:37 2023
+@author: Ann"""
 
 import pytest
 
@@ -123,3 +122,81 @@ class TestGeneral:
                                       ('var1', [1, 4, 10, 11])])
         with pytest.raises(cnstr.ConstraintError):
             con.set_variables(vobjs_list)
+
+
+
+class TestBaseOps:
+
+    @pytest.fixture
+    def const(self, request):
+        """Request.param is a list of varaible name, domain
+        pairs"""
+
+        class AllOdd(cnstr.Constraint):
+
+            def satisfied(self, assignments):
+                """True if all assignments are odd"""
+                return all(val % 2 for val in assignments.values())
+
+        con = AllOdd()
+        con.set_variables(stubs.make_vars(request.param))
+        return con
+
+
+    FIVES = (0, 1, 2, 3, 4)
+    VLISTS = [
+                ([('v1', FIVES)], True, {'v1': [1, 3]}),
+
+                ([('v1', FIVES), ('v2', FIVES)], False, {'v1': [1, 3],
+                                                         'v2': [1, 3]}),
+
+                ([('v1', FIVES), ('v2', FIVES), ('v3', FIVES)],
+                 False, {'v1': list(FIVES),
+                         'v2': list(FIVES),
+                         'v3': list(FIVES)}),
+                ([('v1', [1]), ('v2', [3]), ('v3', [5])],
+                 True,  {'v1': [1], 'v2': [3], 'v3': [5]}),
+            ]
+
+
+    @pytest.mark.parametrize('const, esats, edoms',
+                             VLISTS, indirect=['const'])
+    def test_no_conflicts(self, const, esats, edoms):
+
+        assert const.preprocess() == esats
+
+        for vobj in const.get_variables():
+            assert vobj.get_domain() == edoms[vobj.name]
+
+
+    OLISTS = [
+                [('v1', (2, 4))],
+                [('v1', (2, 4)), ('v2', (2, 4))],
+                [('v1', (2, 4)), ('v2', (2, 4)), ('v3', [])],
+                [('v1', [1]), ('v2', [2]), ('v3', [4])],
+
+            ]
+
+    @pytest.mark.parametrize('const',
+                             OLISTS, indirect=['const'])
+    def test_conflicts(self, const):
+
+        with pytest.raises(cnstr.PreprocessorConflict):
+            const.preprocess()
+
+
+    @pytest.mark.parametrize('const',
+                             [VLISTS[1][0]], indirect=['const'])
+    def test_forward(self, const):
+
+        assert const.forward_check(None)
+
+
+    @pytest.mark.parametrize('const',
+                             [VLISTS[1][0]], indirect=['const'])
+    def test_pdomain(self, const, capsys):
+
+        const.print_domains()
+        data = capsys.readouterr().out
+        assert 'v1' in data
+        assert 'v2' in data

@@ -86,6 +86,7 @@ class ConstraintIF(abc.ABC):
 
         return False
 
+
     @abc.abstractmethod
     def get_vnames(self):
         """Return the list of variable names.
@@ -157,7 +158,7 @@ class Constraint(ConstraintIF):
     def set_variables(self, vobj_list):
         """Set the variables present in a full assignment.
 
-        Classes should override this is additional error checking
+        Classes should override this if additional error checking
         can be done or if properties of the vnames list are needed
         (e.g. duplicate)."""
 

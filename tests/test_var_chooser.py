@@ -23,11 +23,11 @@ class BadChooser(csp.var_chooser.VarChooser):
 # %% a short cut
 
 
-def make_cnstr(vars):
+def make_cnstr(variables):
     """Don't care what the constraint is."""
 
     con = csp.cnstr.AllEqual()
-    con.set_variables(vars)
+    con.set_variables(variables)
     return con
 
 
@@ -51,6 +51,10 @@ class TestVarC:
         slvr = csp.solver.Backtracking()
 
         assert slvr._chooser == csp.var_chooser.DegreeDomain
+        assert 'DegreeDomain' in csp.var_chooser.DegreeDomain.get_name()
+
+        slvr.chooser = csp.var_chooser.UseFirst
+        assert slvr._chooser == csp.var_chooser.UseFirst
 
         with pytest.raises(ValueError):
             slvr.chooser = 5
@@ -58,12 +62,14 @@ class TestVarC:
         with pytest.raises(ValueError):
             slvr.chooser = object()
 
+
     def test_UseFirst(self):
 
         vos = stubs.make_vars([('v1', [1,2]), ('vlong', [1,2]),
                                ('v123', [1,2]), ('a', [1,2])])
 
         assert csp.var_chooser.UseFirst.choose(vos, None, None).name == 'v1'
+        assert 'UseFirst' in csp.var_chooser.UseFirst.get_name()
 
     def test_var_mname(self):
 
