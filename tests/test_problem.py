@@ -102,6 +102,9 @@ class TestProblem:
                                         [(lambda a, b : a*2 == b, 'ab'),
                                          (cnstr.AllDifferent(), 'ad')] )
 
+        with pytest.raises(ValueError):
+            test_prob.var_chooser = object()
+
 
     def test_nat_nums(self):
 

@@ -34,7 +34,6 @@ class SolveType(enum.Enum):
 
 # %%   solver base class
 
-
 class Solver(abc.ABC):
     """Abstract base class for solvers."""
 
@@ -174,16 +173,16 @@ class Solver(abc.ABC):
         if not self._forward:
             return True
 
-        fc_vars = set()
+        fc_vars = set(var_name)
         while fc_vars:
 
-            var_name = fc_vars.pop()
-            for constraint in self._spec.cnstr_dict[var_name]:
+            vname = fc_vars.pop()
+            for cons in self._spec.cnstr_dict[vname]:
 
-                const_assign = self._select_assignments(constraint.get_vnames(),
+                const_assign = self._select_assignments(cons.get_vnames(),
                                                         assignments)
 
-                fc_rval = constraint.forward_check(const_assign)
+                fc_rval = cons.forward_check(const_assign)
                 if fc_rval is False:
                     return False
 
@@ -308,10 +307,23 @@ class Backtracking(Solver):
 class NonRecBacktracking(Solver):
     """A backtracking solver that does not use recursion."""
 
-
     def __init__(self, forward_check=False, problem_spec=None):
         """Store some variables common to most methods.
-        They still need to be passed to base class and var chooser"""
+        They still need to be passed to base class and var chooser.
+
+        _assignments the current list of assignments
+
+        _unassigned  a list of unassigned variables
+
+        _queue       a queue of tuples: var name, values, unassigned vars:
+
+                     var name: a variable with a current assignment
+
+                     values: remaining values for var name (untested)
+
+                     unasigned vars: the variables that were unassigned
+                     when var name was assigned
+        """
 
         super().__init__(forward_check, problem_spec)
 
@@ -410,7 +422,7 @@ class NonRecBacktracking(Solver):
 
         self._assignments = {}
         self._unassigned = []
-        self._queue = []
+        self._queue = col.deque()
 
         while True:
 
@@ -435,8 +447,6 @@ class NonRecBacktracking(Solver):
             self._queue.append((var_name,
                                 values.copy(),
                                 self._unassigned.copy()))
-
-        assert False, 'Should not reach end of _solution_iter'
 
 
     def get_solution(self, problem_spec, solve_type=SolveType.ONE):
@@ -468,7 +478,6 @@ class NonRecBacktracking(Solver):
 
 
 # %% Minimum Conflicts Solver
-
 
 class MinConflictsSolver(Solver):
     """Search for a solution by choosing a random solution
