@@ -12,8 +12,6 @@ all: unit_tests pylint
 #  run all the unit tests and create a coverage report
 
 unit_tests: htmlcov/index.html $(SOURCES) $(TESTS)
-
-htmlcov/index.html: $(SOURCES)  $(TESTS)
 	-coverage run --branch -m pytest
 	coverage html
 
@@ -27,7 +25,8 @@ htmlcov/index.html: $(SOURCES)  $(TESTS)
 #  code is actually tested and not just run as part of another
 #  test.
 
-%.test: clean
+.PHONY: %.test
+%.test: 
 	-coverage run --branch -m pytest tests\\$(subst .test,.py,$@)
 	coverage html
 
