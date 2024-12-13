@@ -85,7 +85,7 @@ class ProblemSpec:
         self.constraints += [constraint]
 
 
-    def add_list_constraint(self, list_con, con_var_pairs):
+    def set_list_constraints(self, list_con, con_var_pairs):
         """Add a list constraint.
 
         list_con: ListConstraint
@@ -96,13 +96,13 @@ class ProblemSpec:
             if isinstance(list_con, cnstr.Constraint):
                 raise ValueError(
                     'Use add_constraint for individual Constraints')
-            raise ValueError('Unexpected object type in add_list_constraint.')
+            raise ValueError('Unexpected object type in set_list_constraint.')
 
         clist = []
         for constraint, variables in con_var_pairs:
             clist += [self._finish_constraint(constraint, variables)]
 
-        list_con.add_constraints(clist)
+        list_con.set_constraints(clist)
         self.constraints += [list_con]
 
 

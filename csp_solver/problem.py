@@ -156,17 +156,17 @@ class Problem:
         self._spec.add_constraint(constraint, variables)
 
 
-    def add_list_constraint(self, list_con, con_var_pairs):
-        """Add a list constraint.
+    def set_list_constraints(self, list_con, con_var_pairs):
+        """Set the list constraints.
 
         Example:
-            problem.add_list_constraint(AtLeastNCList(2, False),
+            problem.set_list_constraints(AtLeastNCList(2, False),
                                         [(lambda a, b : a*2 == b, ['a', 'b']),
                                          (MaxSum(4), ['a', 'b', 'c']),
                                          (AllDifferent(), ['a', 'd', 'f'])]
         """
 
-        self._spec.add_list_constraint(list_con, con_var_pairs)
+        self._spec.set_list_constraints(list_con, con_var_pairs)
 
 
     def get_solution(self):

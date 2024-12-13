@@ -184,19 +184,19 @@ def build_four(forbus):
 
     for name in (PETER, PAUL, JANE):
 
-        forbus.add_list_constraint(lcnstr.OrCList(),
+        forbus.set_list_constraints(lcnstr.OrCList(),
             [(cnstr.NotInValues([GUITAR]), [f'{name}_plays']),
              (cnstr.NotInValues([HEIGHTS]),[f'{name}_fears'])])
 
-        forbus.add_list_constraint(lcnstr.OrCList(),
+        forbus.set_list_constraints(lcnstr.OrCList(),
             [(cnstr.NotInValues([SAX]), [f'{name}_plays']),
              (cnstr.NotInValues([CATS]),[f'{name}_fears'])])
 
-        forbus.add_list_constraint(lcnstr.OrCList(),
+        forbus.set_list_constraints(lcnstr.OrCList(),
             [(cnstr.NotInValues([DRUMS]), [f'{name}_plays']),
              (cnstr.NotInValues([F13]),[f'{name}_fears'])])
 
-        forbus.add_list_constraint(lcnstr.OrCList(),
+        forbus.set_list_constraints(lcnstr.OrCList(),
             [(cnstr.NotInValues([DRUMS]), [f'{name}_plays']),
              (cnstr.NotInValues([HEIGHTS]),[f'{name}_fears'])])
 

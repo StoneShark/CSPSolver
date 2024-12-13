@@ -78,29 +78,29 @@ class TestProblem:
             test_prob.add_constraint(con, 'de')
 
         # add a valid list constraint
-        test_prob.add_list_constraint(lcnstr.AtLeastNCList(2, False),
-                                    [(lambda a, b : a*2 == b, 'ab'),
-                                     (cnstr.MaxSum(4), 'abc'),
-                                     (cnstr.AllDifferent(), 'ad')] )
+        test_prob.set_list_constraints(lcnstr.AtLeastNCList(2),
+                                       [(lambda a, b : a*2 == b, 'ab'),
+                                        (cnstr.MaxSum(4), 'abc'),
+                                        (cnstr.AllDifferent(), 'ad')] )
         assert isinstance(test_prob._spec.constraints[2],
                           lcnstr.ListConstraint)
 
         # test adding a list constraint with only 1 constraint -- bad
         with pytest.raises(ValueError):
-            test_prob.add_list_constraint(lcnstr.AtLeastNCList(2, False),
-                                        [(lambda a, b : a*2 == b, 'ab')] )
+            test_prob.set_list_constraints(lcnstr.AtLeastNCList(2),
+                                           [(lambda a, b : a*2 == b, 'ab')] )
 
         # test adding a list constraint where constraint isn't a list con
         with pytest.raises(ValueError):
-            test_prob.add_list_constraint(cnstr.MaxSum(4),
-                                        [(lambda a, b : a*2 == b, 'ab'),
-                                         (cnstr.AllDifferent(), 'ad')] )
+            test_prob.set_list_constraints(cnstr.MaxSum(4),
+                                           [(lambda a, b : a*2 == b, 'ab'),
+                                            (cnstr.AllDifferent(), 'ad')] )
 
         # test adding a list constraint where constraint isn't a list con
         with pytest.raises(ValueError):
-            test_prob.add_list_constraint('not a list constraint',
-                                        [(lambda a, b : a*2 == b, 'ab'),
-                                         (cnstr.AllDifferent(), 'ad')] )
+            test_prob.set_list_constraints('not a list constraint',
+                                           [(lambda a, b : a*2 == b, 'ab'),
+                                           (cnstr.AllDifferent(), 'ad')] )
 
         with pytest.raises(ValueError):
             test_prob.var_chooser = object()

@@ -125,7 +125,7 @@ class TestArcCon3Boris:
         prob.add_constraint(cnstr.MinSum(10), 'ABC')
         prob.add_constraint(cnstr.MinSum(5), 'BC')
 
-        prob.add_list_constraint(lcnstr.OrCList(),
+        prob.set_list_constraints(lcnstr.OrCList(),
                                  [(cnstr.IfThen(2, 3), 'AF'),
                                   (cnstr.Nand(1, 3), 'BF')])
 
