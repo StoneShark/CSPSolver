@@ -55,6 +55,7 @@ Additionally, a grouping of constraints may be applied with list constraints. Th
 
 - AtLeastNCList - require only a subset of the constraints be met
 - AtMostNCList - require that not all of the constraints be met
+- NOfCList - require an exact number of constraints be met
 - OneOfCList - require exactly one of the constraints be met
 - OrCList - require at least one of the constraints be met
 

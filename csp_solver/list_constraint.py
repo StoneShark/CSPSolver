@@ -109,7 +109,6 @@ class ListConstraint(cnstr.ConstraintIF):
         return True
 
 
-
 class AtLeastNCList(ListConstraint):
     """A list of constraints of which req_nbr (or more) should be
     True. At least req_nbr constraints must be True."""

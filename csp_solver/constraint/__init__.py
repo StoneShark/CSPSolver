@@ -12,3 +12,4 @@ Created on Sat Jun 17 10:57:05 2023
 from .cnstr_base import *
 from .cnstr_concrete import *
 from .cnstr_binary import *
+from .cnstr_natnbrs import *

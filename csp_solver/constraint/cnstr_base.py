@@ -291,8 +291,37 @@ class Constraint(ConstraintIF):
         """Forward hiding of domain values from unassigned variables
         based on those that are assigned."""
         _ = self
-
         return True
+
+
+    def hide_bad_values(self, assignments, good_test):
+        """Remove values that we know cannot be used for
+        unassigned variables. This is a helper function
+        for the forward_checks.
+
+        good_test must be a function that gets vobj and a
+        value currently in it's domain; if the value is
+        still a possible assignment it should return True.
+        If the value can be eliminated, return False.
+
+        Return a list of variables whose domains been changed
+        or False if the problem is over constrained."""
+
+        changes = set()
+        for vobj in self._vobjs:
+
+            if vobj.name in assignments:
+                continue
+
+            for value in vobj.get_domain()[:]:
+                if good_test(vobj, value):
+                    continue
+
+                changes |= {vobj.name}
+                if not vobj.hide(value):
+                    return False
+
+        return changes
 
 
     def print_domains(self):

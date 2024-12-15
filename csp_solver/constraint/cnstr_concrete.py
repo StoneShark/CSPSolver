@@ -36,7 +36,6 @@ class BoolFunction(cnstr_base.Constraint):
         super().__init__()
         self._func = func
         self._var_args = var_args
-        self._params = 0
 
 
     def __repr__(self):
@@ -93,12 +92,14 @@ class AllDifferent(cnstr_base.Constraint):
     def __repr__(self):
         return 'AllDifferent()'
 
+
     def satisfied(self, assignments):
         """Test the given assignements."""
         _ = self
 
         values = assignments.values()
         return len(values) == len(set(values))
+
 
     def preprocess(self):
         """Override the default method.
@@ -111,9 +112,13 @@ class AllDifferent(cnstr_base.Constraint):
 
         return self._test_over_satis()
 
+
     def forward_check(self, assignments):
         """Hide the values that have already been assigned from
         the domains of those that have not yet been assigned."""
+
+        # pylint: disable=duplicate-code
+        # the inner loop is different! would be very confusing code to change
 
         assign_vals = set(assignments.values())
         if len(assign_vals) == self._params:
@@ -144,12 +149,14 @@ class AllEqual(cnstr_base.Constraint):
     def __repr__(self):
         return 'AllEqual()'
 
+
     def satisfied(self, assignments):
         """Test the given assignements."""
         _ = self
 
         values = list(assignments.values())
         return all(values[0] == val for val in values[1:])
+
 
     def preprocess(self):
         """Override the default method.
@@ -162,215 +169,17 @@ class AllEqual(cnstr_base.Constraint):
 
         return self._test_over_satis()
 
+
     def forward_check(self, assignments):
         """If any of the values have been set, then hide any other
         values from the domains of the unset variables."""
 
         known_val = list(assignments.values())[0]
 
-        changes = set()
-        for vobj in self._vobjs:
-            if vobj.name in assignments:
-                continue
-
-            for value in vobj.get_domain()[:]:
-                if value == known_val:
-                    continue
-
-                changes |= {vobj.name}
-                if not vobj.hide(value):
-                    return False
-
+        changes = self.hide_bad_values(
+                        assignments,
+                        lambda _, value: value == known_val)
         return changes
-
-
-class MaxSum(cnstr_base.Constraint):
-    """Assigned variables must sum to less than or equal to max.
-
-    Assumes all variables have natural integer domains (>= 0)."""
-
-    NAT_NBR_DOMAIN = True
-
-    def __init__(self, maxsum):
-
-        super().__init__()
-        self._maxsum = maxsum
-
-    def __repr__(self):
-        return f'MaxSum({self._maxsum})'
-
-    def satisfied(self, assignments):
-        """Test the given assignements."""
-
-        return sum(assignments.values()) <= self._maxsum
-
-    def preprocess(self):
-        """Remove values that are too large.
-
-        If all combinations of assignments satisfies the constraint
-        (sum of max of each domain), return True.
-
-        RETURN - True if constraint fully applied,
-        False if not fully applied and not overconstrained,
-        Raise an exception if over constrained."""
-
-        if super().preprocess():
-            return True
-
-        for vobj in self._vobjs:
-            for value in vobj.get_domain()[:]:
-                if value > self._maxsum:
-                    vobj.remove_dom_val(value)
-
-        if self._test_over_satis():
-            return True
-
-        if sum(max(vobj.get_domain()) for vobj in self._vobjs) <= self._maxsum:
-            return True
-
-        return False
-
-    def forward_check(self, assignments):
-        """The asssignments are either a final sum or a partial sum,
-        hide domain values from the unset variables that would violate
-        the max_sum constraint."""
-
-        cur_sum = sum(assignments.values())
-
-        changes = set()
-        for vobj in self._vobjs:
-            if vobj.name in assignments:
-                continue
-
-            for value in vobj.get_domain()[:]:
-                if value + cur_sum <= self._maxsum:
-                    continue
-
-                changes |= {vobj.name}
-                if not vobj.hide(value):
-                    return False
-
-        return changes
-
-
-class ExactSum(cnstr_base.Constraint):
-    """Assigned variables must sum to equal value.
-
-    Assumes all variables have natural integer domains (>= 0)."""
-
-    NAT_NBR_DOMAIN = True
-
-    def __init__(self, exactsum):
-
-        super().__init__()
-        self._exactsum = exactsum
-        self._params = 0
-
-    def __repr__(self):
-        return f'ExactSum({self._exactsum})'
-
-    def satisfied(self, assignments):
-        """Test the given assignements."""
-
-        cur_sum = sum(assignments.values())
-
-        if len(assignments) == self._params:
-            return cur_sum == self._exactsum
-
-        return cur_sum <= self._exactsum
-
-    def preprocess(self):
-        """Remove values that are too large.
-
-        RETURN - True if constraint fully applied,
-        False if not fully applied and not overconstrained,
-        Raise an exception if over constrained."""
-
-        if super().preprocess():
-            return True
-
-        for vobj in self._vobjs:
-            for value in vobj.get_domain()[:]:
-                if value > self._exactsum:
-                    vobj.remove_dom_val(value)
-
-        return self._test_over_satis()
-
-    def forward_check(self, assignments):
-        """The asssignments are either a final sum or a partial sum,
-        hide domain values from the unset variables that would violate
-        the max_sum constraint."""
-
-        cur_sum = sum(assignments.values())
-
-        changes = set()
-        for vobj in self._vobjs:
-            if vobj.name in assignments:
-                continue
-
-            for value in vobj.get_domain()[:]:
-                if value + cur_sum <= self._exactsum:
-                    continue
-
-                changes |= {vobj.name}
-                if not vobj.hide(value):
-                    return False
-
-        return changes
-
-
-class MinSum(cnstr_base.Constraint):
-    """Assigned variables must sum to more than or equal to minsum.
-
-    Assumes all variables have natural integer domains (>= 0)."""
-
-    NAT_NBR_DOMAIN = True
-    ARC_CONSIST_CHECK_OK = cnstr_base.ArcConCheck.CHECK_INST
-
-    def __init__(self, minsum):
-
-        super().__init__()
-        self._minsum = minsum
-        self._params = 0
-
-    def __repr__(self):
-        return f'MinSum({self._minsum})'
-
-    def satisfied(self, assignments):
-        """Only test the given assignements when we have all of the
-        assignments. Return True otherwise, to keep making assignments."""
-
-        if len(assignments) == self._params:
-            return sum(assignments.values()) >= self._minsum
-
-        return True
-
-    def preprocess(self):
-        """Use parent preprocessor to handle single variable constraints.
-
-        If the max value of variable does not sum to more than _minsum,
-        raise overconstraint error.
-
-        If all combinations of assignments satisfies the constraint
-        (sum of min of each domain), return True.
-
-        RETURN - True if constraint fully applied,
-        False if not fully applied and not overconstrained,
-        Raise an exception if over constrained."""
-
-        if super().preprocess():
-            return True
-
-        if sum(max(vobj.get_domain()) for vobj in self._vobjs) < self._minsum:
-
-            vnames = ', '.join(vobj.name for vobj in self._vobjs)
-            msg = f'Preprocess detected overconstraint by {self} for {vnames}.'
-            raise cnstr_base.PreprocessorConflict(msg)
-
-        if sum(min(vobj.get_domain()) for vobj in self._vobjs) >= self._minsum:
-            return True
-
-        return False
 
 
 class InValues(cnstr_base.Constraint):
@@ -384,13 +193,16 @@ class InValues(cnstr_base.Constraint):
         super().__init__()
         self._good_vals = good_vals
 
+
     def __repr__(self):
         return f'InValues({self._good_vals})'
+
 
     def satisfied(self, assignments):
         """Test the given assignements."""
 
         return all(val in self._good_vals for val in assignments.values())
+
 
     def preprocess(self):
         """Remove domain values that are not in the set.
@@ -439,6 +251,7 @@ class NotInValues(cnstr_base.Constraint):
         return True
 
 
+
 class AtLeastNIn(cnstr_base.Constraint):
     """Required number of values in good_vals.  Return True until
     we have ahve all the assignments
@@ -448,13 +261,14 @@ class AtLeastNIn(cnstr_base.Constraint):
     If not exact: at least req_nbr values in assignments must be in good_vals.
     """
 
+    # TODO why isn't AtLeastNIn an ARC_CON CHECK_INST?
+
     def __init__(self, good_vals, req_nbr=1, exact=False):
 
         super().__init__()
         self._good_vals = good_vals
         self._req_nbr = req_nbr
         self._exact = exact
-        self._params = 0
 
     def __repr__(self):
         return f'AtLeastNIn({self._good_vals}, {self._req_nbr}, {self._exact})'
@@ -488,11 +302,12 @@ class AtLeastNIn(cnstr_base.Constraint):
 
         return nbr_good >= self._req_nbr
 
+
     def preprocess(self):
         """Disable preprocessing."""
         _ = self
-
         return False
+
 
     def forward_check(self, assignments):
         """Reduce the domain of the remaining variables if we can be
@@ -510,19 +325,9 @@ class AtLeastNIn(cnstr_base.Constraint):
 
         assert not_assigned + nbr_good == self._req_nbr
 
-        changes = set()
-        for vobj in self._vobjs:
-
-            if vobj.name in assignments:
-                continue
-
-            for value in vobj.get_domain()[:]:
-                if value in self._good_vals:
-                    continue
-
-                changes |= {vobj.name}
-                if not vobj.hide(value):
-                    return False
+        changes = self.hide_bad_values(
+                        assignments,
+                        lambda _, value: value in self._good_vals)
 
         return changes
 
@@ -545,7 +350,6 @@ class AtLeastNNotIn(cnstr_base.Constraint):
         self._bad_vals = bad_vals
         self._req_nbr = req_nbr
         self._exact = exact
-        self._params = 0
 
     def __repr__(self):
         return f'AtLeastNNotIn({self._bad_vals}, {self._req_nbr}, {self._exact})'
@@ -579,11 +383,13 @@ class AtLeastNNotIn(cnstr_base.Constraint):
 
         return nbr_bad >= self._req_nbr
 
+
     def preprocess(self):
         """Disable preprocessing, but check for construction error."""
         _ = self
 
         return False
+
 
     def forward_check(self, assignments):
         """Reduce the domain of the remaining variables if we can be
@@ -601,20 +407,9 @@ class AtLeastNNotIn(cnstr_base.Constraint):
 
         assert not_assigned + nbr_bad == self._req_nbr
 
-        changes = set()
-        for vobj in self._vobjs:
-
-            if vobj.name in assignments:
-                continue
-
-            for value in vobj.get_domain()[:]:
-                if value not in self._bad_vals:
-                    continue
-
-                changes |= {vobj.name}
-                if not vobj.hide(value):
-                    return False
-
+        changes = self.hide_bad_values(
+                        assignments,
+                        lambda _, value: value not in self._bad_vals)
         return changes
 
 
@@ -627,8 +422,10 @@ class OneOrder(cnstr_base.Constraint):
 
     ARC_CONSIST_CHECK_OK = cnstr_base.ArcConCheck.CHECK_INST
 
+
     def __repr__(self):
         return 'OneOrder()'
+
 
     def satisfied(self, assignments):
         """Check for increasing value order."""
@@ -648,6 +445,7 @@ class LessThan(cnstr_base.Constraint):
     def __repr__(self):
         return 'LessThan()'
 
+
     def set_variables(self, vobj_list):
         """Check for exactly two variables."""
 
@@ -657,6 +455,7 @@ class LessThan(cnstr_base.Constraint):
             raise cnstr_base.ConstraintError(
                 f'{self} works on exactly two variables.')
 
+
     def satisfied(self, assignments):
         """Test the constraint."""
 
@@ -665,6 +464,7 @@ class LessThan(cnstr_base.Constraint):
             return vals[0] < vals[1]
 
         return True
+
 
     def preprocess(self):
         """val1 < val2
@@ -733,6 +533,7 @@ class LessThanEqual(cnstr_base.Constraint):
     def __repr__(self):
         return 'LessThanEqual()'
 
+
     def set_variables(self, vobj_list):
         """Check for exactly two variables."""
 
@@ -742,6 +543,7 @@ class LessThanEqual(cnstr_base.Constraint):
             raise cnstr_base.ConstraintError(
                 f'{self} works on exactly two variables.')
 
+
     def satisfied(self, assignments):
         """Test the constraint."""
 
@@ -750,6 +552,7 @@ class LessThanEqual(cnstr_base.Constraint):
             return vals[0] <= vals[1]
 
         return True
+
 
     def preprocess(self):
         """val1 < val2
