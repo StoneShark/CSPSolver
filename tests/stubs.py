@@ -14,3 +14,12 @@ def make_vars(pairs):
     return a list of variable objects."""
 
     return [csp.Variable(name, dom) for name, dom in pairs]
+
+
+class ExtraData(csp.extra_data.ExtraDataIF):
+    """A class that meet the IF but does nothing"""
+    def assign(self, var, val):
+        pass
+
+    def pop():
+        pass

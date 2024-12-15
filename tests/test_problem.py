@@ -15,17 +15,7 @@ from csp_solver import extra_data
 from csp_solver import list_constraint as lcnstr
 from csp_solver import solver
 from csp_solver import var_chooser
-
-
-# %%  support classes
-
-class ExtraData(extra_data.ExtraDataIF):
-    """A class that meet the IF but does nothing"""
-    def assign(self, var, val):
-        pass
-
-    def pop():
-        pass
+import stubs
 
 
 # %%   test Problem
@@ -57,7 +47,9 @@ class TestProblem:
             test_prob.add_variable('a', [1,2,3,4])
 
         # add a bunch of vars all with same domain
-        test_prob.add_variables('bcd', [False, True])
+        dom = [False, True]
+        test_prob.add_variables('bcd', dom)
+        dom[0] = 5
         assert test_prob._spec.variables['b'].get_domain() == [False, True]
         assert test_prob._spec.variables['c'].get_domain() == [False, True]
         assert test_prob._spec.variables['d'].get_domain() == [False, True]
@@ -78,7 +70,7 @@ class TestProblem:
             test_prob.add_constraint(con, 'de')
 
         # add a valid list constraint
-        test_prob.set_list_constraints(lcnstr.AtLeastNCList(2),
+        test_prob.add_list_constraint(lcnstr.AtLeastNCList(2),
                                        [(lambda a, b : a*2 == b, 'ab'),
                                         (cnstr.MaxSum(4), 'abc'),
                                         (cnstr.AllDifferent(), 'ad')] )
@@ -87,18 +79,18 @@ class TestProblem:
 
         # test adding a list constraint with only 1 constraint -- bad
         with pytest.raises(ValueError):
-            test_prob.set_list_constraints(lcnstr.AtLeastNCList(2),
+            test_prob.add_list_constraint(lcnstr.AtLeastNCList(2),
                                            [(lambda a, b : a*2 == b, 'ab')] )
 
         # test adding a list constraint where constraint isn't a list con
         with pytest.raises(ValueError):
-            test_prob.set_list_constraints(cnstr.MaxSum(4),
+            test_prob.add_list_constraint(cnstr.MaxSum(4),
                                            [(lambda a, b : a*2 == b, 'ab'),
                                             (cnstr.AllDifferent(), 'ad')] )
 
         # test adding a list constraint where constraint isn't a list con
         with pytest.raises(ValueError):
-            test_prob.set_list_constraints('not a list constraint',
+            test_prob.add_list_constraint('not a list constraint',
                                            [(lambda a, b : a*2 == b, 'ab'),
                                            (cnstr.AllDifferent(), 'ad')] )
 
@@ -142,8 +134,8 @@ class TestProblem:
         with pytest.raises(ValueError):
             test_prob.extra_data = 5
 
-        test_prob.extra_data = ExtraData()
-        assert isinstance(test_prob._solver.extra, ExtraData)
+        test_prob.extra_data = stubs.ExtraData()
+        assert isinstance(test_prob._solver.extra, stubs.ExtraData)
 
         with pytest.raises(ValueError):
             test_prob.arc_con = 5
@@ -166,7 +158,7 @@ class TestProblem:
         # test that all updates were copied into new solver
         assert test_prob._solver.chooser == var_chooser.UseFirst
         assert test_prob._solver.forward
-        assert isinstance(test_prob._solver.extra, ExtraData)
+        assert isinstance(test_prob._solver.extra, stubs.ExtraData)
         assert isinstance(test_prob._solver.arc_con, arc_consist.ArcCon3)
 
 

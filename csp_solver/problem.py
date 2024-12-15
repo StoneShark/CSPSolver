@@ -24,7 +24,6 @@ Created on Wed May  3 07:45:13 2023
 
 # %% imports
 
-from . import extra_data
 from . import problem_spec
 from . import solver
 
@@ -117,8 +116,6 @@ class Problem:
     def extra_data(self, extra):
         """Give the solver the extra data repreresentation."""
 
-        if not isinstance(extra, extra_data.ExtraDataIF):
-            raise ValueError('extra_data must be built on extra_data.ExtraDataIF')
         self._solver.extra = extra
 
 
@@ -156,17 +153,17 @@ class Problem:
         self._spec.add_constraint(constraint, variables)
 
 
-    def set_list_constraints(self, list_con, con_var_pairs):
+    def add_list_constraint(self, list_con, con_var_pairs):
         """Set the list constraints.
 
         Example:
-            problem.set_list_constraints(AtLeastNCList(2, False),
+            problem.add_list_constraint(AtLeastNCList(2, False),
                                         [(lambda a, b : a*2 == b, ['a', 'b']),
                                          (MaxSum(4), ['a', 'b', 'c']),
                                          (AllDifferent(), ['a', 'd', 'f'])]
         """
 
-        self._spec.set_list_constraints(list_con, con_var_pairs)
+        self._spec.add_list_constraint(list_con, con_var_pairs)
 
 
     def get_solution(self):

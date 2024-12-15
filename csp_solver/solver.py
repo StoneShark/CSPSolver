@@ -101,9 +101,14 @@ class Solver(abc.ABC):
 
     @extra.setter
     def extra(self, extra):
-        """Use an extra data representation.  Save the it."""
-        if isinstance(extra, extra_data.ExtraDataIF):
-            self._extra = extra
+        """Use an extra data representation.  Save the it.
+
+        This might be called to copy solver params from one solver
+        to another (must work extra == None)."""
+        if extra and not isinstance(extra, extra_data.ExtraDataIF):
+            raise ValueError('extra_data must be built on extra_data.ExtraDataIF')
+
+        self._extra = extra
 
 
     def _assign_extra(self, var, val):
@@ -474,7 +479,6 @@ class NonRecBacktracking(Solver):
             return [sol1]
 
         assert False, "Unknown solver type"
-
 
 
 # %% Minimum Conflicts Solver

@@ -85,7 +85,7 @@ class ProblemSpec:
         self.constraints += [constraint]
 
 
-    def set_list_constraints(self, list_con, con_var_pairs):
+    def add_list_constraint(self, list_con, con_var_pairs):
         """Add a list constraint.
 
         list_con: ListConstraint
