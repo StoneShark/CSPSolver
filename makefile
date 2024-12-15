@@ -4,14 +4,14 @@ SOURCES = csp_solver/*.py csp_solver/constraint/*.py
 TESTS = tests/test_*.py
 
 
-all: unit_tests pylint
+all: clean unit_tests pylint
 
 
 #  unit_tests
 #
 #  run all the unit tests and create a coverage report
 
-unit_tests: htmlcov/index.html $(SOURCES) $(TESTS)
+unit_tests: $(SOURCES) $(TESTS)
 	-coverage run --branch -m pytest
 	coverage html
 
