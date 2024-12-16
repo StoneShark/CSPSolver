@@ -199,7 +199,9 @@ class InValues(cnstr_base.Constraint):
 
 
     def satisfied(self, assignments):
-        """Test the given assignements."""
+        """Test the given assignements.
+        Preprocess completely handles but this is a required interface,
+        implement correctly."""
 
         return all(val in self._good_vals for val in assignments.values())
 
@@ -229,13 +231,18 @@ class NotInValues(cnstr_base.Constraint):
         super().__init__()
         self._bad_vals = bad_vals
 
+
     def __repr__(self):
         return f'NotInValues({self._bad_vals})'
 
+
     def satisfied(self, assignments):
-        """Test the given assignements."""
+        """Test the given assignements.
+        Preprocess completely handles but this is a required interface,
+        implement correctly."""
 
         return all(val not in self._bad_vals for val in assignments.values())
+
 
     def preprocess(self):
         """Remove domain values that are in the set.
@@ -249,168 +256,6 @@ class NotInValues(cnstr_base.Constraint):
 
         self._test_over_satis()
         return True
-
-
-
-class AtLeastNIn(cnstr_base.Constraint):
-    """Required number of values in good_vals.  Return True until
-    we have ahve all the assignments
-
-    Return True until all values are assigned, then:
-    If exact: exactly req_nbr values in assignments must be in good_vals.
-    If not exact: at least req_nbr values in assignments must be in good_vals.
-    """
-
-    # TODO why isn't AtLeastNIn an ARC_CON CHECK_INST?
-
-    def __init__(self, good_vals, req_nbr=1, exact=False):
-
-        super().__init__()
-        self._good_vals = good_vals
-        self._req_nbr = req_nbr
-        self._exact = exact
-
-    def __repr__(self):
-        return f'AtLeastNIn({self._good_vals}, {self._req_nbr}, {self._exact})'
-
-
-    def set_variables(self, vobj_list):
-        """Check for construction error."""
-
-        super().set_variables(vobj_list)
-
-        if self._req_nbr == self._params:
-            raise cnstr_base.ConstraintError(
-                f'{self}: req_nbr == number variables, use InValues.')
-
-        if self._req_nbr > self._params:
-            raise cnstr_base.ConstraintError(
-                f'{self}: req_nbr must be < number variables.')
-
-
-    def satisfied(self, assignments):
-        """Test the given assignements."""
-
-        if len(assignments) < self._params:
-            return True
-
-        nbr_good = sum(1 for val in assignments.values()
-                       if val in self._good_vals)
-
-        if self._exact:
-            return nbr_good == self._req_nbr
-
-        return nbr_good >= self._req_nbr
-
-
-    def preprocess(self):
-        """Disable preprocessing."""
-        _ = self
-        return False
-
-
-    def forward_check(self, assignments):
-        """Reduce the domain of the remaining variables if we can be
-        certain that they must all be in good_vals."""
-
-        nbr_good = sum(1 for val in assignments.values()
-                       if val in self._good_vals)
-        not_assigned = self._params - len(assignments)
-
-        if nbr_good >= self._req_nbr:   # constraint already met
-            return True
-
-        if not_assigned + nbr_good < self._req_nbr:  # constraint can't be met
-            return False
-
-        assert not_assigned + nbr_good == self._req_nbr
-
-        changes = self.hide_bad_values(
-                        assignments,
-                        lambda _, value: value in self._good_vals)
-
-        return changes
-
-
-class AtLeastNNotIn(cnstr_base.Constraint):
-    """Required number of values in must not be in bad_vals.
-    Return True until we have have all the assignments
-
-    Return True until all values are assigned, then:
-    If exact: exactly req_nbr values in assignments must be in good_vals.
-    If not exact: at least req_nbr values in assignments must be in good_vals.
-    """
-
-    ARC_CONSIST_CHECK_OK = cnstr_base.ArcConCheck.CHECK_INST
-
-
-    def __init__(self, bad_vals, req_nbr=1, exact=False):
-
-        super().__init__()
-        self._bad_vals = bad_vals
-        self._req_nbr = req_nbr
-        self._exact = exact
-
-    def __repr__(self):
-        return f'AtLeastNNotIn({self._bad_vals}, {self._req_nbr}, {self._exact})'
-
-
-    def set_variables(self, vobj_list):
-        """Check for construction error."""
-
-        super().set_variables(vobj_list)
-
-        if self._req_nbr == self._params:
-            raise cnstr_base.ConstraintError(
-                f'{self}: req_nbr == number variables, use InValues.')
-
-        if self._req_nbr > self._params:
-            raise cnstr_base.ConstraintError(
-                f'{self}: req_nbr must be < number variables.')
-
-
-    def satisfied(self, assignments):
-        """Test the given assignements."""
-
-        if len(assignments) < self._params:
-            return True
-
-        nbr_bad = sum(1 for val in assignments.values()
-                      if val not in self._bad_vals)
-
-        if self._exact:
-            return nbr_bad == self._req_nbr
-
-        return nbr_bad >= self._req_nbr
-
-
-    def preprocess(self):
-        """Disable preprocessing, but check for construction error."""
-        _ = self
-
-        return False
-
-
-    def forward_check(self, assignments):
-        """Reduce the domain of the remaining variables if we can be
-        certain that they must all be in bad_vals."""
-
-        nbr_bad = sum(1 for val in assignments.values()
-                      if val not in self._bad_vals)
-        not_assigned = self._params - len(assignments)
-
-        if nbr_bad >= self._req_nbr:   # constraint already met
-            return True
-
-        if not_assigned + nbr_bad < self._req_nbr:   # constraint can't be met
-            return False
-
-        assert not_assigned + nbr_bad == self._req_nbr
-
-        changes = self.hide_bad_values(
-                        assignments,
-                        lambda _, value: value not in self._bad_vals)
-        return changes
 
 
 class OneOrder(cnstr_base.Constraint):

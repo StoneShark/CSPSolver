@@ -37,7 +37,6 @@ The following constraints are provided:
 - MinSum
 - InValues
 - NotInValues
-- AtLeastNIn
 - AtLeastNNotIn
 - OneOrder
 - LessThan
@@ -50,6 +49,13 @@ Five more constraints are provided to provide a full set of boolean constraints 
 - IfThen
 - XOR
 - NXOR
+
+Constraints that behave somewhat like sets are available. These allow constraining the number of values assigned to a group of variables:
+
+- ExactlyNIn
+- AtLeastNIn
+- AtMostNIN
+- AtLeastNNotIn
 
 Additionally, a grouping of constraints may be applied with list constraints. The constraints are ANDed in a CSP; these constraints allow creating ORed relationships. List constraints should not be used if the problem can stated without them; they do not support preprocessing, forward checking, or arc consistency checking.
 

@@ -27,14 +27,12 @@ class TestGeneral:
 
         assert cnstr.InValues.NAT_NBR_DOMAIN == False
         assert cnstr.NotInValues.NAT_NBR_DOMAIN == False
-        assert cnstr.AtLeastNIn.NAT_NBR_DOMAIN == False
-        assert cnstr.AtLeastNNotIn.NAT_NBR_DOMAIN == False
 
         assert cnstr.OneOrder.NAT_NBR_DOMAIN == False
         assert cnstr.BoolBinOpConstraint.NAT_NBR_DOMAIN == False
 
         # Fail if new constraints need to be added to this test
-        assert len(cnstr.Constraint.__subclasses__()) == 14
+        assert len(cnstr.Constraint.__subclasses__()) == 13
 
         assert cnstr.Nand.NAT_NBR_DOMAIN == False
         assert cnstr.Or.NAT_NBR_DOMAIN == False
@@ -47,6 +45,14 @@ class TestGeneral:
 
         # Fail if new constraints need to be added to this test
         assert len(cnstr.BoolBinOpConstraint.__subclasses__()) == 5
+
+        assert cnstr.ExactlyNIn.NAT_NBR_DOMAIN == False
+        assert cnstr.AtLeastNIn.NAT_NBR_DOMAIN == False
+        assert cnstr.AtMostNIn.NAT_NBR_DOMAIN == False
+        assert cnstr.AtLeastNNotIn.NAT_NBR_DOMAIN == False
+
+        # Fail if new constraints need to be added to this test
+        assert len(cnstr.SetConstraint.__subclasses__()) == 4
 
 
     def test_arc_checks(self):
@@ -63,9 +69,6 @@ class TestGeneral:
 
         assert cnstr.InValues.ARC_CONSIST_CHECK_OK == ArcConCheck.ALWAYS
         assert cnstr.NotInValues.ARC_CONSIST_CHECK_OK == ArcConCheck.ALWAYS
-        assert cnstr.AtLeastNIn.ARC_CONSIST_CHECK_OK == ArcConCheck.ALWAYS
-        assert cnstr.AtLeastNNotIn.ARC_CONSIST_CHECK_OK == \
-            ArcConCheck.CHECK_INST
 
         assert cnstr.OneOrder.ARC_CONSIST_CHECK_OK == ArcConCheck.CHECK_INST
 
@@ -74,9 +77,11 @@ class TestGeneral:
 
         assert cnstr.BoolBinOpConstraint.ARC_CONSIST_CHECK_OK == \
             ArcConCheck.ALWAYS
+        assert cnstr.SetConstraint.ARC_CONSIST_CHECK_OK == \
+            ArcConCheck.CHECK_INST
 
         # Fail if new constraints need to be added to this test
-        assert len(cnstr.Constraint.__subclasses__()) == 14
+        assert len(cnstr.Constraint.__subclasses__()) == 13
 
         assert cnstr.Nand.ARC_CONSIST_CHECK_OK == ArcConCheck.ALWAYS
         assert cnstr.Or.ARC_CONSIST_CHECK_OK == ArcConCheck.ALWAYS
@@ -86,6 +91,15 @@ class TestGeneral:
 
         # Fail if new constraints need to be added to this test
         assert len(cnstr.BoolBinOpConstraint.__subclasses__()) == 5
+
+        assert cnstr.ExactlyNIn.ARC_CONSIST_CHECK_OK == ArcConCheck.CHECK_INST
+        assert cnstr.AtLeastNIn.ARC_CONSIST_CHECK_OK == ArcConCheck.CHECK_INST
+        assert cnstr.AtMostNIn.ARC_CONSIST_CHECK_OK == ArcConCheck.CHECK_INST
+        assert cnstr.AtLeastNNotIn.ARC_CONSIST_CHECK_OK == \
+            ArcConCheck.CHECK_INST
+
+        # Fail if new constraints need to be added to this test
+        assert len(cnstr.SetConstraint.__subclasses__()) == 4
 
 
     def test_arc_ok(self):
