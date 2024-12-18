@@ -4,6 +4,8 @@
 Created on Tue May 14 11:55:32 2024
 @author: Ann"""
 
+# %% imports
+
 import os
 import sys
 
@@ -12,8 +14,10 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__),
 
 from csp_solver import constraint as cnstr
 from csp_solver import experimenter
+from csp_solver import var_chooser
 
-# %%
+
+# %%  grid definition
 
 def _cross(unit1, unit2):
     """Cross product of elements in A and elements in B."""
@@ -39,13 +43,13 @@ BOX_UNITS = [_cross(rs, cs)
 UNITLIST = ROW_UNITS + COL_UNITS + BOX_UNITS
 
 
-# %%  problem spec
+# %%  problem definition
 
 def build(eproblem):
 
-    for squ in SQUARES:
-        eproblem.add_variable(squ, list(DIGITS))
+    eproblem.var_chooser = var_chooser.MinDomain
 
+    eproblem.add_variables(SQUARES, list(DIGITS))
     for ugroup in UNITLIST:
         eproblem.add_constraint(cnstr.AllDifferent(), ugroup)
 
@@ -68,17 +72,20 @@ def build(eproblem):
               "I4": "0", "I5": "0", "I6": "0", "I7": "9", "I8": "5",
               "I9": "6"}
     for var, val in puzzle.items():
-        if val != '0':
+        if val != EMPTY:
             eproblem.add_constraint(cnstr.InValues([val]), [var])
 
 
 def show_solution(solution):
 
+    print()
     for row in ROWS:
         for col in COLS:
             print(solution[row + col], end=' ')
-            if col in 'CF':
-                print(' | ', end='')
+            if col in '36':
+                print('| ', end='')
+        if row in 'CF':
+            print('\n----- + ----- + -----', end='')
         print()
 
 
