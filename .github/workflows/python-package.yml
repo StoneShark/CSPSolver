@@ -33,7 +33,7 @@ jobs:
         python -m pip install pytest-mock
     - name: Linter
       run: |
-        pylint --rcfile .pylint --fail-under 9.6 --recursive yes csp_solver
+        pylint --rcfile .pylintrc --fail-under 9.6 --recursive yes csp_solver
     - name: Test with pytest
       run: |
         coverage run --branch -m pytest
