@@ -43,7 +43,7 @@ primitive constraints.
                       = B and not A      NotInValues and InValues
 
 15.  XOR             A xor B
-                      =  A!B or AB!      Xor
+                      =  A != B          Xor
                                          OneOfCList (>= two operands,
                                                      but no preproc or forward)
 

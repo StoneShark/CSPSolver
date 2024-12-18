@@ -11,18 +11,18 @@ from . import cnstr_base
 
 class BoolFunction(cnstr_base.Constraint):
     """A functional constraint.  Assignments might be a partial list.
-    The function will be tested when the final value is assigned.
 
     There are two ways the function is called:
 
-    1. If var_args is true, the function is called with parameters
+    1. If var_args is True, the function is called with parameters
     that we have (the function gets the assignment dictionary).
     No test is made to see if the assignments are complete.
 
-    2. Call the function
-    with the dictionary's value list expanded. (var_args == False)
-
-    Otherwise, if we don't have all the parameters,
+    2. Call the function with positional arguments but only
+    when we have all the assignments (var_args == False).
+    Arguments are in the same order as they were in the
+    add_constraint call.
+    Otherwise, if we don't have all the assignments,
     return True to keep assigning variables."""
 
     ARC_CONSIST_CHECK_OK = cnstr_base.ArcConCheck.CHECK_INST

@@ -153,14 +153,12 @@ class Solver(abc.ABC):
 
     def _all_consistent(self, assignments):
         """Check all constraints against all assignments.
-
         If any constraint is not satified return False, otherwise True"""
 
         for constraint in self._spec.constraints:
 
             const_assign = self._select_assignments(constraint.get_vnames(),
                                                     assignments)
-
             if not constraint.satisfied(const_assign):
                 return False
 
@@ -170,7 +168,9 @@ class Solver(abc.ABC):
     def _forward_check(self, var_name, assignments):
         """Do the forward check on the constrains that use var_name.
         If the domains of any variables are changed re-run their
-        forward_check.
+        forward_check. Even though forward checks are only on
+        assignments, the values assigned to other varaibles
+        (not var_name) might constrain the domain more.
 
         Return:  If the forward check overcontrains the problem return False,
         to backtrack (or what ever the sovler wants to do); otherwise True."""

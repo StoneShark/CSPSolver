@@ -198,3 +198,11 @@ class Problem:
 
         for name, vobj in self._spec.variables.items():
             print(name, vobj.get_domain())
+
+
+    def print_constraints(self):
+        """A debugging function to print out the constraints
+        and their variables."""
+
+        for con in self._spec.constraints:
+            print(con, con.get_vnames())
