@@ -10,6 +10,7 @@ Created on Thu Jun 22 05:30:19 2023
 # %% imports
 
 import pytest
+pytestmark = pytest.mark.unittest
 
 import csp_solver as csp
 from csp_solver import arc_consist

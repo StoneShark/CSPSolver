@@ -9,6 +9,7 @@
 # %% imports
 
 import pytest
+pytestmark = pytest.mark.unittest
 
 from csp_solver import constraint as cnstr
 

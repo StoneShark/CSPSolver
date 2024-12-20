@@ -7,6 +7,7 @@ Created on Mon Dec 16 08:04:19 2024
 # %% imports
 
 import pytest
+pytestmark = pytest.mark.unittest
 
 from csp_solver import constraint as cnstr
 import stubs

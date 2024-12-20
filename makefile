@@ -6,12 +6,38 @@ TESTS = tests/test_*.py
 
 all: clean unit_tests pylint
 
+#  clean
+#
+#  remove most of the accumulated stuff from builds
+#  generally causes any other target to re-run
+
+.PHONY : clean
+clean:
+	-rmdir /S /Q __pycache__
+	-rmdir /S /Q csp_solver\\__pycache__
+	-rmdir /S /Q csp_solver\\constraint\\__pycache__
+	-rmdir /S /Q tests\\__pycache__
+	-rmdir /S /Q examples\\__pycache__
+	-rmdir /S /Q .pytest_cache
+	-del pylint_report.txt
+	-rmdir /S /Q htmlcov
+	-del .coverage
+
 
 #  unit_tests
 #
 #  run all the unit tests and create a coverage report
 
 unit_tests: $(SOURCES) $(TESTS)
+	-coverage run --branch -m pytest -m unittest
+	coverage html
+
+
+#  all_tests
+#
+#  run all tests
+
+all_tests: $(SOURCES) $(TESTS)
 	-coverage run --branch -m pytest
 	coverage html
 
@@ -41,24 +67,6 @@ pylint_report.txt: $(SOURCES) .pylintrc
 	-del pylint_report.txt
 	-pylint --output pylint_report.txt --rcfile .pylintrc --recursive yes csp_solver
 	type pylint_report.txt
-
-
-#  clean
-#
-#  remove most of the accumulated stuff from builds
-#  generally causes any other target to re-run
-
-.PHONY : clean
-clean:
-	-rmdir /S /Q __pycache__
-	-rmdir /S /Q csp_solver\\__pycache__
-	-rmdir /S /Q csp_solver\\constraint\\__pycache__
-	-rmdir /S /Q tests\\__pycache__
-	-rmdir /S /Q examples\\__pycache__
-	-rmdir /S /Q .pytest_cache
-	-del pylint_report.txt
-	-rmdir /S /Q htmlcov
-	-del .coverage
 
 
 # Three places to look for things that need doing:

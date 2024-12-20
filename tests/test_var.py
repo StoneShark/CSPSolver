@@ -8,6 +8,7 @@ Created on Sun May  7 11:49:58 2023
 # %% imports
 
 import pytest
+pytestmark = pytest.mark.unittest
 
 import csp_solver as csp
 

@@ -5,6 +5,7 @@ Created on Fri Jun 23 06:00:37 2023
 @author: Ann"""
 
 import pytest
+pytestmark = pytest.mark.unittest
 
 from csp_solver import constraint as cnstr
 from csp_solver.constraint import ArcConCheck

@@ -10,6 +10,7 @@ import functools as ft
 import operator as op
 
 import pytest
+pytestmark = pytest.mark.unittest
 
 from csp_solver import constraint as cnstr
 import stubs

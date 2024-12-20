@@ -36,8 +36,6 @@ The following constraints are provided:
 - ExactSum
 - MinSum
 - InValues
-- NotInValues
-- AtLeastNNotIn
 - OneOrder
 - LessThan
 - LessThanEqual
@@ -73,6 +71,8 @@ Three solvers are provided:
 - NonRecBacktracking
 - MinConflictsSolver
 
+Using the experimenter with "--solver all" with show a nominal comparison of the time required for each solver. More detailed timing can be selected with the "--timer" option and it's values.
+
 ## Variable Chooser ##
 
 Choosing the next variable to assign can greatly improve solver time. The following are included:
@@ -85,7 +85,9 @@ Choosing the next variable to assign can greatly improve solver time. The follow
 - DomainDegree - select the variable with the largest domain from those with the smalled domain. Sort order is minimum domain then maximum degree.
 - MaxAssignedNeighs - choose the variable listed in constraints along with other variables (neighbors) that have the most assigned values.
 
+Using the exerimenter with "--var_chooser all" will show a nominal comparison of the time required to with each chooser on the same problem.
+
 ## Compatibility ##
 CSP Solver requires only standard python 3.12 or later.
 
-A makefile provides some developement scripts. A couple optional targets in the makefile use grep. Pytest is the test environment.
+A makefile provides some developement scripts. A couple optional targets in the makefile use grep. Pytest is the test environment with support from coverage, pytest-cov and pytest-mock.
