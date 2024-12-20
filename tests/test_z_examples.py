@@ -38,7 +38,7 @@ def get_examples():
     as slow."""
 
     examples = []
-    for dpath, _, files in os.walk('.\\examples'):
+    for dpath, _, files in os.walk(os.path.join('.', 'examples')):
         for file in files:
 
             if file[-3:] == '.py':
