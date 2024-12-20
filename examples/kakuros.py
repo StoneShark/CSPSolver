@@ -13,8 +13,11 @@ import sys
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__),
                                                 '..')))
+
+import csp_solver as csp
 from csp_solver import constraint as cnstr
 from csp_solver import experimenter
+
 
 # %%   constants
 
@@ -47,7 +50,7 @@ def build(prob):
         prob.add_constraint(cnstr.ExactSum(ttl), svars)
 
 
-def show_solution(solution):
+def show_solution(solution, _=None):
 
     for row in ROWS:
         for col in COLS:
@@ -60,3 +63,11 @@ def show_solution(solution):
 if __name__ == '__main__':
 
     experimenter.do_stuff(build, show_solution)
+
+if __name__ == '__test_example__':
+
+    print('\n')
+    prob = csp.Problem()
+    build(prob)
+    sol = prob.get_solution()
+    show_solution(sol)

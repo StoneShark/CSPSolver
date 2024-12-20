@@ -39,9 +39,12 @@ def solve(slvr):
         print(prob.get_all_solutions())
 
 
-for s in [solver.Backtracking(forward_check=True),
-          solver.NonRecBacktracking(),
-          solver.MinConflictsSolver()
-          ]:
+if __name__ == '__main__' or __name__ == '__test_example__':
 
-    solve(s)
+    print('\n')
+    for s in [solver.Backtracking(forward_check=True),
+              solver.NonRecBacktracking(),
+              solver.MinConflictsSolver()
+              ]:
+
+        solve(s)

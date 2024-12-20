@@ -22,6 +22,7 @@ import sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__),
                                                 '..')))
 
+import csp_solver as csp
 from csp_solver import constraint as cnstr
 from csp_solver import experimenter
 
@@ -119,7 +120,7 @@ def build_two(money_prob):
     money_prob.add_constraint(add_dupl,     ['s', 'm', 'c3', 'o'])
 
 
-def show(sol):
+def show(sol, _=None):
     """pretty print the solution."""
 
     print('  ' + ''.join([chr(ZERO + sol[v]) for v in 'send']))
@@ -131,6 +132,19 @@ def show(sol):
         print(f"\nc1={sol['c1']}  c2={sol['c2']}  c3={sol['c3']}")
 
 
+builds = [build_one, build_two]
+
 if __name__ == '__main__':
 
-    experimenter.do_stuff([build_one, build_two], show)
+    experimenter.do_stuff(builds, show)
+
+
+if __name__ == '__test_example__':
+
+    for build in builds:
+
+        print('\nSolving build', build.__name__)
+        prob = csp.Problem()
+        build(prob)
+        sol = prob.get_solution()
+        show(sol)

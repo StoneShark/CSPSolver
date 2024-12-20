@@ -2,6 +2,14 @@
 """A Hashiwokaker solver.
 Puzzles and rules at https://www.hashi.info/
 
+Variables are possible bridge locations between islands.
+Domain is the number of bridged between each (0, 1 or 3).
+
+Constraints:
+    ExactSums for number of bridges out of each island
+    Or for bridge locations that would cross
+    BoolFunction to test if all islands are connected
+
 Created on Wed Dec 18 07:19:07 2024
 @author: Ann"""
 
@@ -13,9 +21,10 @@ import sys
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__),
                                                 '..')))
-
+import csp_solver as csp
 from csp_solver import constraint as cnstr
 from csp_solver import experimenter
+
 
 # %%  constants
 
@@ -30,14 +39,29 @@ COL = 1
 # %%  problem grid  - grid used by both build and print_sol
 
 
-grid = [[1, 0, 3, 0, 0, 2, 0],
-        [0, 0, 0, 0, 0, 0, 1],
-        [0, 0, 0, 1, 0, 2, 0],
-        [3, 0, 6, 0, 4, 0, 3],
-        [0, 1, 0, 2, 0, 0, 0],
-        [2, 0, 2, 0, 1, 0, 0],
-        [0, 2, 0, 4, 0, 0, 2]]
+grid1 = [[1, 0, 3, 0, 0, 2, 0],
+         [0, 0, 0, 0, 0, 0, 1],
+         [0, 0, 0, 1, 0, 2, 0],
+         [3, 0, 6, 0, 4, 0, 3],
+         [0, 1, 0, 2, 0, 0, 0],
+         [2, 0, 2, 0, 1, 0, 0],
+         [0, 2, 0, 4, 0, 0, 2]]
 
+grid2 = [[2, 0, 0, 2, 0, 4, 0, 0, 4, 0, 2],
+         [0, 3, 0, 0, 2, 0, 0, 0, 0, 0, 0],
+         [0, 0, 0, 0, 0, 2, 0, 0, 6, 0, 5],
+         [3, 0, 1, 0, 4, 0, 0, 1, 0, 0, 0],
+         [0, 4, 0, 2, 0, 0, 0, 0, 0, 1, 0],
+         [3, 0, 1, 0, 2, 0, 3, 0, 2, 0, 3],
+         [0, 2, 0, 0, 0, 0, 0, 1, 0, 3, 0],
+         [0, 0, 0, 2, 0, 0, 4, 0, 1, 0, 2],
+         [2, 0, 2, 0, 0, 3, 0, 0, 0, 0, 0],
+         [0, 1, 0, 0, 0, 0, 2, 0, 0, 2, 0],
+         [2, 0, 2, 0, 0, 4, 0, 3, 0, 0, 2],
+         ]
+
+
+grids = [grid1, grid2]
 
 # %% all_connected
 
@@ -101,10 +125,11 @@ def all_connected(islands, expected, arg_dict):
 
 # %% define and print csp
 
-def build(prob):
+def build(build_nbr, prob):
+    """Build a hashi puzzle."""
 
     isle_cnts = {VALS[idx] + VALS[idy]: cnt
-                 for idx, row in enumerate(grid)
+                 for idx, row in enumerate(grids[build_nbr])
                  for idy, cnt in enumerate(row)
                  if cnt}
     islands = list(isle_cnts.keys())
@@ -150,9 +175,9 @@ def build(prob):
         nodes)
 
 
-def print_sol(sol):
+def print_sol(sol, build_nbr):
 
-    pgrid = [row[:] for row in grid]
+    pgrid = [row[:] for row in grids[build_nbr]]
 
     for node, bridges in sol.items():
 
@@ -180,6 +205,24 @@ def print_sol(sol):
 
 # %% main
 
+build_funcs = []
+for bnbr in range(len(grids)):
+    bfunc = ft.partial(build, bnbr)
+    bfunc.__name__ = f'build({bnbr}, '
+    build_funcs += [bfunc]
+
+
 if __name__ == '__main__':
 
-    experimenter.do_stuff(build, print_sol)
+    experimenter.do_stuff(build_funcs, print_sol)
+
+
+if __name__ == '__test_example__':
+
+    for bnbr, _ in enumerate(grids):
+
+        print(f'\nSolving grid {bnbr}')
+        bprob = csp.Problem()
+        build(bnbr, bprob)
+        sol = bprob.get_solution()
+        print_sol(sol, bnbr)

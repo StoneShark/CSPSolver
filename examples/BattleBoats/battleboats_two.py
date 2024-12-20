@@ -25,9 +25,16 @@ Created on Thu May 11 18:53:28 2023
 
 # %% imports
 
-from context import cnstr
-from context import experimenter
-from context import solver
+import os
+import sys
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__),
+                                                '../..')))
+
+import csp_solver as csp
+from csp_solver import constraint as cnstr
+from csp_solver import experimenter
+from csp_solver import solver
 
 
 
@@ -79,7 +86,7 @@ def print_grid(grid):
     print('    0  1  2  3  4  5  6  7  8  9\n')
 
 
-def print_assign_grid(assignments):
+def print_assign_grid(assignments, _=None):
     """Convert the assignments to a grid and print it."""
 
     grid = [[UNASSIGNED] * 10 for _ in range(10)]
@@ -331,7 +338,7 @@ class BoatCounts(cnstr.Constraint):
 def build(problem):
     """Battleship/Commodore problem from Games Magazine September 2019."""
 
-    problem.set_solver(solver.NonRecBacktracking())
+    problem.solver = solver.NonRecBacktracking()
 
     variables = [(x, y)
                  for x in range(SIZE)
@@ -385,3 +392,11 @@ def build(problem):
 if __name__ == '__main__':
 
     experimenter.do_stuff(build, print_assign_grid)
+
+
+if __name__ == '__test_example__':
+
+    bprob = csp.Problem()
+    build(bprob)
+    sol = bprob.get_solution()
+    print_assign_grid(sol)

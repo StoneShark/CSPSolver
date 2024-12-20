@@ -11,10 +11,11 @@ import sys
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__),
                                                 '..')))
-
+import csp_solver as csp
 from csp_solver import constraint as cnstr
 from csp_solver import experimenter
 from csp_solver import list_constraint as lcnstr
+from csp_solver import solver
 
 
 PETER = 'Peter'
@@ -184,24 +185,24 @@ def build_four(forbus):
 
     for name in (PETER, PAUL, JANE):
 
-        forbus.set_list_constraints(lcnstr.OrCList(),
+        forbus.add_list_constraint(lcnstr.OrCList(),
             [(cnstr.NotInValues([GUITAR]), [f'{name}_plays']),
              (cnstr.NotInValues([HEIGHTS]),[f'{name}_fears'])])
 
-        forbus.set_list_constraints(lcnstr.OrCList(),
+        forbus.add_list_constraint(lcnstr.OrCList(),
             [(cnstr.NotInValues([SAX]), [f'{name}_plays']),
              (cnstr.NotInValues([CATS]),[f'{name}_fears'])])
 
-        forbus.set_list_constraints(lcnstr.OrCList(),
+        forbus.add_list_constraint(lcnstr.OrCList(),
             [(cnstr.NotInValues([DRUMS]), [f'{name}_plays']),
              (cnstr.NotInValues([F13]),[f'{name}_fears'])])
 
-        forbus.set_list_constraints(lcnstr.OrCList(),
+        forbus.add_list_constraint(lcnstr.OrCList(),
             [(cnstr.NotInValues([DRUMS]), [f'{name}_plays']),
              (cnstr.NotInValues([HEIGHTS]),[f'{name}_fears'])])
 
 
-def show_solution(solution):
+def show_solution(solution, _=None):
     """Show solution based on variable set."""
 
     if 'name1' in solution:
@@ -231,7 +232,20 @@ def show_solution(solution):
 
 # %% main
 
+
+builds = [build_one, build_two, build_three, build_four]
+
 if __name__ == '__main__':
 
-    experimenter.do_stuff([build_one, build_two, build_three, build_four],
-                          show_solution)
+    experimenter.do_stuff(builds, show_solution)
+
+
+if __name__ == '__test_example__':
+
+    for build in builds:
+
+        print('\nSolving build', build.__name__)
+        prob = csp.Problem(solver.NonRecBacktracking())
+        build(prob)
+        sol = prob.get_solution()
+        show_solution(sol)

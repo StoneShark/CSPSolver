@@ -118,7 +118,7 @@ BoatVals.boat_parts = [BoatVals.ROUND, BoatVals.END_TOP,
 
 # %% constants
 
-PUZ_PATH ="examples/BattleBoats/BB_Puzzles/"
+PUZ_PATH ="./BB_Puzzles/"
 
 SIZE = 10
 
@@ -152,7 +152,7 @@ INCS = [(1, 0), (0, 1)]
 
 # %%
 
-def print_grid(assignments):
+def print_grid(assignments, _=None):
     """Convert the assignments to a grid and print it."""
 
     grid = [[-1] * SIZE for _ in range(SIZE)]
@@ -1045,7 +1045,7 @@ def decode_to_constraints(extra, pairs):
 def read_puzzle(filename, extra):
     """Read the puzzle and return a BoatGrid."""
 
-    with open(filename, 'r', encoding='UTF-8') as file:
+    with open(PUZ_PATH + filename, 'r', encoding='UTF-8') as file:
         lines = file.readlines()
 
     raw_data = ''.join(lines)
@@ -1064,12 +1064,12 @@ def add_basic(boatprob):
     """Add the variables and basic constraints (true for all puzzles)."""
 
 
-    boatprob.set_var_chooser(BBoatChooser())
-    boatprob.enable_forward_check()  # TODO this is NOT setting it
+    boatprob.var_chooser = BBoatChooser()
+    boatprob.enable_forward_check()
     boatprob.add_variables(BOAT_VARS, BoatVals.assign_vals)
 
     extra = BBExtra(boatprob._spec.variables)
-    boatprob.set_extra_rep(extra)
+    boatprob.extra = extra
 
     boatprob.add_constraint(NbrParts(extra, NCELLS), BOAT_VARS)
 
@@ -1108,7 +1108,7 @@ def build_two(boatprob):
 
     extra = add_basic(boatprob)
 
-    cons = read_puzzle(PUZ_PATH + "puzzles/seaman_sept2019.txt", extra)
+    cons = read_puzzle("seaman_sept2019.txt", extra)
 
     for con in cons:
         boatprob.add_constraint(con, BOATS)
@@ -1119,7 +1119,7 @@ def build_three(boatprob):
 
     extra = add_basic(boatprob)
 
-    cons = read_puzzle(PUZ_PATH + "puzzles/admiral_sept2019.txt", extra)
+    cons = read_puzzle("admiral_sept2019.txt", extra)
 
     for con in cons:
         boatprob.add_constraint(con, BOATS)
@@ -1130,7 +1130,7 @@ def build_four(boatprob):
 
     extra = add_basic(boatprob)
 
-    cons = read_puzzle(PUZ_PATH + "puzzles/p_officer_sept2019.txt", extra)
+    cons = read_puzzle("p_officer_sept2019.txt", extra)
 
     for con in cons:
         boatprob.add_constraint(con, BOATS)
@@ -1141,7 +1141,7 @@ def build_five(boatprob):
 
     extra = add_basic(boatprob)
 
-    cons = read_puzzle(PUZ_PATH + "puzzles/test.txt", extra)
+    cons = read_puzzle("test.txt", extra)
 
     for con in cons:
         boatprob.add_constraint(con, BOATS)
@@ -1175,7 +1175,7 @@ def test_wrapper():
     build_five(boatprob)
 
     print('Reading answer:')
-    with open(PUZ_PATH + "puzzles/answer.txt", encoding='UTF-8') as file:
+    with open(PUZ_PATH + "answer.txt", encoding='UTF-8') as file:
         answer = json.load(file)
     print_grid(answer)
     print()
@@ -1185,8 +1185,24 @@ def test_wrapper():
 
 # %%   main
 
+builds = [build_one, build_two, build_three, build_four, build_five]
+
+
 if __name__ == '__main__':
 
-    experimenter.do_stuff([build_one, build_two, build_three,
-                           build_four, build_five],
-                          print_grid)
+    experimenter.do_stuff(builds,  print_grid)
+
+
+if __name__ == '__test_example__':
+
+    # for build in [build_two]:
+    #     bprob = problem.Problem()
+    #     build(bprob)
+    #     sol = bprob.get_solution()
+    #     if sol:
+    #         print_grid(sol)
+    #     else:
+    #         print(build.__name__, "- no solutions.")
+
+    skipped = True
+    reason = 'Has errors and slow.'

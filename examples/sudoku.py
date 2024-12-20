@@ -12,6 +12,7 @@ import sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__),
                                                 '..')))
 
+import csp_solver as csp
 from csp_solver import constraint as cnstr
 from csp_solver import experimenter
 from csp_solver import var_chooser
@@ -76,7 +77,7 @@ def build(eproblem):
             eproblem.add_constraint(cnstr.InValues([val]), [var])
 
 
-def show_solution(solution):
+def show_solution(solution, _=None):
 
     print()
     for row in ROWS:
@@ -92,3 +93,12 @@ def show_solution(solution):
 if __name__ == '__main__':
 
     experimenter.do_stuff(build, show_solution)
+
+
+if __name__ == '__test_example__':
+
+    print('\n')
+    prob = csp.Problem()
+    build(prob)
+    sol = prob.get_solution()
+    show_solution(sol)

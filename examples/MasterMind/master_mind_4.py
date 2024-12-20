@@ -15,10 +15,18 @@ import sys
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__),
                                                 '../..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__),
+                                                '.')))
+
 from csp_solver import constraint as cnstr
 from csp_solver import list_constraint as lcnstr
 
 import master_mind as mmind
+
+# %% run the file as the test
+
+'__test_example__'
+
 
 # %%  setup
 
@@ -84,7 +92,7 @@ mmind.get_print_sols(puz)
 
 # %%  pgrg  1 black 1 white
 
-puz.add_constraint(cnstr.AtLeastNIn('rgp', 2, exact=True), '1234')
+puz.add_constraint(cnstr.ExactlyNIn('rgp', 2), '1234')
 
 # one of guess in right place
 puz.add_list_constraint(lcnstr.NOfCList(1),

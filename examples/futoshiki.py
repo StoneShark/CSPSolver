@@ -12,6 +12,8 @@ import sys
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__),
                                                 '..')))
+
+import csp_solver as csp
 from csp_solver import constraint as cnstr
 from csp_solver import experimenter
 
@@ -44,9 +46,11 @@ def build(prob):
     for ugroup in UNITLIST:
         prob.add_constraint(cnstr.AllDifferent(), ugroup)
 
+    # add the defined values here
     prob.add_constraint(cnstr.InValues('4'), ['B1', 'C3', 'D5'])
     prob.add_constraint(cnstr.InValues('2'), ['B5'])
 
+    # add the less than constraints here
     prob.add_constraint(cnstr.LessThan(), ['A5', 'A4'])
     prob.add_constraint(cnstr.LessThan(), ['A4', 'A3'])
     prob.add_constraint(cnstr.LessThan(), ['A2', 'A1'])
@@ -55,7 +59,7 @@ def build(prob):
     prob.add_constraint(cnstr.LessThan(), ['E2', 'E3'])
 
 
-def show_solution(solution):
+def show_solution(solution, _=None):
 
     for row in ROWS:
         for col in COLS:
@@ -68,3 +72,12 @@ def show_solution(solution):
 if __name__ == '__main__':
 
     experimenter.do_stuff(build, show_solution)
+
+
+if __name__ == '__test_example__':
+
+    print('\n')
+    prob = csp.Problem()
+    build(prob)
+    sol = prob.get_solution()
+    show_solution(sol)

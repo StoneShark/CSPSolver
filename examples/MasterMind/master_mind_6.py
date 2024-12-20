@@ -11,11 +11,24 @@ Created on Mon Dec 16 10:34:59 2024
 
 # %% imports
 
+import os
+import sys
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__),
+                                                '../..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__),
+                                                '.')))
+
 from csp_solver import constraint as cnstr
 from csp_solver import list_constraint as lcnstr
 from csp_solver import var_chooser
 
 import master_mind as mmind
+
+
+# %% run the file as the test
+
+'__test_example__'
 
 
 # %% problem setup

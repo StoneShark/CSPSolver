@@ -963,7 +963,7 @@ BoatOrder()  # to catch any interface changes
 
 # %%  print the grid
 
-def print_grid(solution):
+def print_grid(solution, _=None):
     """print the solution grid"""
 
     grid = [[' . '] * SIZE for _ in range(SIZE)]
@@ -1014,8 +1014,20 @@ def test_wrapper():
 
 # %%   main
 
+builds = [build_one, build_two, build_three, build_four, build_five]
+
 if __name__ == '__main__':
 
-    experimenter.do_stuff([build_one, build_two, build_three,
-                           build_four, build_five],
-                          print_grid)
+    experimenter.do_stuff(builds, print_grid)
+
+
+if __name__ == '__test_example__':
+
+    for build in builds:
+
+        print(f'\nSolving build {build.__name__}:\n', build.__doc__)
+        bprob = problem.Problem()
+        build(bprob)
+        bprob.var_chooser = BoatOrder
+        sol = bprob.get_solution()
+        print_grid(sol)

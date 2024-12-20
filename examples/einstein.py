@@ -26,17 +26,16 @@ Clues
 14. The Norwegian lives next to the blue house.
 15. The man who smokes Blends has a neighbour who drinks water.
 
+Examples of using the experimenter:
+
+python einstein.py --solver all
+python einstein.py --var_chooser all
+python einstein.py --solver NonRecBacktracking
+python einstein.py --solver NonRecBacktracking --forward
+python einstein.py --forward
+
 Created on Wed May  3 15:02:43 2023
-@author: Ann
-
-
-python examples/einstein.py --solver all
-python examples/einstein.py --var_chooser all
-python examples/einstein.py --solver NonRecBacktracking
-python examples/einstein.py --solver NonRecBacktracking --forward
-python examples/einstein.py --forward
-
-"""
+@author: Ann"""
 
 # %% imports
 
@@ -44,7 +43,7 @@ import os
 import sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__),
                                                 '..')))
-
+import csp_solver as csp
 from csp_solver import constraint as cnstr
 from csp_solver import experimenter
 
@@ -163,7 +162,7 @@ def build(eproblem):
 
 
 
-def show_solution(solution):
+def show_solution(solution, _=None):
     """Print the solution in a table and question answer."""
     print()
     print('   Nation    Color     Drink     Smoke     Pet')
@@ -188,3 +187,12 @@ def show_solution(solution):
 if __name__ == '__main__':
 
     experimenter.do_stuff(build, show_solution)
+
+
+if __name__ == '__test_example__':
+
+    print('\n')
+    prob = csp.Problem()
+    build(prob)
+    sol = prob.get_solution()
+    show_solution(sol)

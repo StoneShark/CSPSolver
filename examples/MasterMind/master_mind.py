@@ -44,3 +44,9 @@ def get_print_sols(mmind):
                 print(''.join(sol[str(i)] for i in range(1, nvars)))
 
     mmind.print_domains()
+
+
+
+if __name__ == '__test_example__':
+    skipped = True
+    reason = 'Support module'

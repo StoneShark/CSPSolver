@@ -11,8 +11,8 @@ Two interfaces are required to be passed to do_stuff:
     which build.
 
  2. show_solution - a function that gets a solution (as an
-    assignment dictionary) and should print an understandable
-    version of the solution.
+    assignment dictionary) and the build number used; it
+    should print an understandable version of the solution.
 
 Created on Thu Jun 15 15:45:11 2023
 @author: Ann"""
@@ -34,18 +34,27 @@ from . import var_chooser
 
 # %% constants
 
-# these dict comprehensions generate a run-time warning
-# with cProfile included in py 3.12
+SOLVERS = None
+VAR_CHOOSERS = None
+ARC_CONSIST = None
 
-SOLVERS = {slvr.__name__ : slvr()
-           for slvr in solver.Solver.__subclasses__()}
+def load_class_lists():
+    """Only load these when they are needed.
+    Loading when importing the module does bad things in the
+    test suite (i.e. there are bad classes defined)."""
 
-VAR_CHOOSERS = {varc.__name__ : varc
-                for varc in var_chooser.VarChooser.__subclasses__()}
+    global SOLVERS, VAR_CHOOSERS, ARC_CONSIST
 
-ARC_CONSIST = {arc_con.__name__ : arc_con()
-               for arc_con in arc_consist.ArcConIF.__subclasses__()}
-ARC_CONSIST['none'] = None
+    SOLVERS = {slvr.__name__ : slvr()
+               for slvr in solver.Solver.__subclasses__()}
+
+    VAR_CHOOSERS = {varc.__name__ : varc
+                    for varc in var_chooser.VarChooser.__subclasses__()}
+
+    ARC_CONSIST = {arc_con.__name__ : arc_con()
+                   for arc_con in arc_consist.ArcConIF.__subclasses__()}
+    ARC_CONSIST['none'] = None
+
 
 ALL = 'all'
 KEEP = 'keep'
@@ -65,6 +74,9 @@ STD_INDENT = '    '
 def run_the_choosers(cargs, build):
     """Run all the chooser, timing them."""
 
+    if not VAR_CHOOSERS:
+        load_class_lists()
+
     print('Timing each var_chooser (each might not find solution):')
     for chooser in VAR_CHOOSERS.values():
 
@@ -83,6 +95,9 @@ def run_the_choosers(cargs, build):
 def run_the_solvers(cargs, build):
     """Run all the sovlers, timing them."""
 
+    if not SOLVERS:
+        load_class_lists()
+
     print('Timing each solver (each might not find solution):')
     for slvr in SOLVERS.values():
 
@@ -100,6 +115,9 @@ def run_the_solvers(cargs, build):
 def build_the_problem(cargs, build):
     """Build the problem. Change the sovler and var_chooser if the args
     specified."""
+
+    if not SOLVERS:
+        load_class_lists()
 
     prob_inst = problem.Problem()
 
@@ -181,12 +199,12 @@ def solve_it(cargs, build, show_solution):
         elif cargs.unique:
             if len(sol) == 1:
                 print('Solution is unique.')
-                show_solution(sol[0])
+                show_solution(sol[0], cargs.build - 1)
             else:
                 print('There is not a unique solution.')
 
         elif sol:
-            show_solution(sol)
+            show_solution(sol, cargs.build - 1)
 
         else:
             print('\nNo solutions')
@@ -219,6 +237,9 @@ class MultilineFormatter(argparse.HelpFormatter):
 
 def define_parser(nbr_builds):
     """Define the command line arguements."""
+
+    if not SOLVERS:
+        load_class_lists()
 
     parser = argparse.ArgumentParser(
         usage='%(prog)s [--help] [options]',
@@ -290,14 +311,13 @@ def define_parser(nbr_builds):
                             Cannot be used with --all.
                             Default: %(default)s""")
 
-    if nbr_builds:
-        parser.add_argument('--build', action='store',
-                            choices=range(1,nbr_builds+1), default=1,
-                            type=int,
-                            help="""Which of multiple build functions should be run.
-                            This option is only available if the experimenter
-                            was given more than one build function.
-                            Default: %(default)s""")
+    parser.add_argument('--build', action='store',
+                        choices=range(1,nbr_builds+1), default=1,
+                        type=int,
+                        help="""Which of multiple build functions should be run.
+                        This option is limited to the number of build functions
+                        provided to the experimenter.
+                        Default: %(default)s""")
     return parser
 
 
@@ -341,7 +361,7 @@ def do_stuff(build_param, show_solution):
     Check the parameters, parse the command line arguements, and
     then do something."""
 
-    nbr_builds = 0
+    nbr_builds = 1
     if isinstance(build_param, list):
         nbr_builds = len(build_param)
 

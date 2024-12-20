@@ -38,6 +38,8 @@ import sys
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__),
                                                 '../..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__),
+                                                '.')))
 
 from csp_solver import constraint as cnstr
 from csp_solver import experimenter
@@ -46,7 +48,6 @@ from csp_solver import problem
 from csp_solver import solver
 from csp_solver import variable
 from csp_solver import var_chooser
-
 
 from battleboats import PUZ_PATH
 from battleboats import SIZE
@@ -840,7 +841,8 @@ class BoatOrder(var_chooser.VarChooser):
     """Choose the variable assignment order based on boat length.
     do longest boats first."""
 
-    def choose(self, vobjs, prob_spec, assignments):
+    @staticmethod
+    def choose(vobjs, prob_spec, assignments):
         """var chooser"""
 
         _ = prob_spec, assignments
@@ -855,7 +857,7 @@ def add_basic(boatprob):
     """Add the basic constraints common to all battle boats problems."""
 
     extra = BBExtra()
-    boatprob.extra_data = extra
+    boatprob.extra = extra
     boatprob.solver = solver.NonRecBacktracking()
     boatprob.var_chooser = BoatOrder()
     boatprob.forward_check = True
@@ -948,7 +950,7 @@ def build_five(boatprob):
 
 # %%  print the grid
 
-def print_grid(solution):
+def print_grid(solution, _=None):
     """print the solution grid"""
 
     grid = [[' . '] * SIZE for _ in range(SIZE)]
@@ -1002,8 +1004,22 @@ def test_wrapper():
 
 # %%   main
 
+builds = [build_one, build_two, build_three, build_four, build_five]
+
+
 if __name__ == '__main__':
 
-    experimenter.do_stuff([build_one, build_two, build_three,
-                           build_four, build_five],
-                          print_grid)
+    experimenter.do_stuff(builds, print_grid)
+
+
+if __name__ == '__test_example__':
+
+    # for build in builds:
+    #     bprob = problem.Problem()
+    #     build(bprob)
+    #     bprob.var_chooser = BoatOrder
+    #     sol = bprob.get_solution()
+    #     print_grid(sol)
+
+    skipped = True
+    reason = 'Has errors and slow.'

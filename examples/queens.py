@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
-"""Solve the eight queens problem.
+"""Solve the eight queens problem:
+
+Put 8 queens on a chess board so that they cannot
+capture eachother.
 
 Created on Mon May  8 13:30:37 2023
 @author: Ann"""
@@ -11,6 +14,7 @@ import sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__),
                                                 '..')))
 
+import csp_solver as csp
 from csp_solver import experimenter
 
 
@@ -38,7 +42,7 @@ def build(queen_prob):
                                       (q1, q2))  # these are ranks
 
 
-def show(solution):
+def show(solution, _=None):
     """Print the solution grid."""
 
     sep_row = '   ' + '-' * ((SIZE * 4) - 1)
@@ -62,3 +66,12 @@ def show(solution):
 if __name__ == '__main__':
 
     experimenter.do_stuff(build, show)
+
+
+if __name__ == '__test_example__':
+
+    print('\n')
+    prob = csp.Problem()
+    build(prob)
+    sol = prob.get_solution()
+    show(sol)

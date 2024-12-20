@@ -35,11 +35,20 @@ unit_tests: $(SOURCES) $(TESTS)
 
 #  all_tests
 #
-#  run all tests
+#  run all tests (do not include slow examples)
 
 all_tests: $(SOURCES) $(TESTS)
 	-coverage run --branch -m pytest
 	coverage html
+
+
+#  examples
+#
+#  run the example tests and show the output
+
+.PHONY: examples
+examples:
+	pytest -vs tests/test_examples.py --run_slow
 
 
 #  test individual files

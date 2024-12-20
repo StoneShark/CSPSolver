@@ -10,7 +10,7 @@ import sys
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__),
                                                 '..')))
-
+import csp_solver as csp
 from csp_solver import constraint as cnstr
 from csp_solver import experimenter
 
@@ -36,7 +36,7 @@ def build(prob):
     prob.add_constraint(cnstr.LessThan(), 'ED')
 
 
-def show(sol):
+def show(sol, _=None):
 
     print(f"A = {sol['A']}")
     print(f"B = {sol['B']}")
@@ -48,3 +48,12 @@ def show(sol):
 if __name__ == '__main__':
 
     experimenter.do_stuff(build, show)
+
+
+if __name__ == '__test_example__':
+
+    print('\n')
+    bprob = csp.Problem()
+    build(bprob)
+    sol = bprob.get_solution()
+    show(sol)
