@@ -200,8 +200,7 @@ class InValues(cnstr_base.Constraint):
 
     def satisfied(self, assignments):
         """Test the given assignements.
-        Preprocess completely handles but this is a required interface,
-        implement correctly."""
+        Preprocess completely handles except when in list constraints."""
 
         return all(val in self._good_vals for val in assignments.values())
 
@@ -238,8 +237,7 @@ class NotInValues(cnstr_base.Constraint):
 
     def satisfied(self, assignments):
         """Test the given assignements.
-        Preprocess completely handles but this is a required interface,
-        implement correctly."""
+        Preprocess completely handles except when in list constraints."""
 
         return all(val not in self._bad_vals for val in assignments.values())
 
