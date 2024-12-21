@@ -5,10 +5,10 @@
     Row and column sums count the number of boat parts in row/column.
     Partial placement is provided (see constraints below).
 
-variables - the grid
+variables - the grid cells
 domains - boat part or empty
 
-more variables but much smaller domain than battleboats.py
+more variables but much smaller domains than battleboats.py
 
 Constraints defined:
     NoOccedDiag - extention of ExactSum
@@ -35,7 +35,7 @@ import csp_solver as csp
 from csp_solver import constraint as cnstr
 from csp_solver import experimenter
 from csp_solver import solver
-
+from csp_solver import var_chooser
 
 
 # %% constants
@@ -142,7 +142,6 @@ class NoOccedDiag(cnstr.ExactSum):
         is occupied, so don't let it's preprocessor run."""
 
         return False
-
 
 
 class BoatCounts(cnstr.Constraint):
@@ -339,6 +338,7 @@ def build(problem):
     """Battleship/Commodore problem from Games Magazine September 2019."""
 
     problem.solver = solver.NonRecBacktracking()
+    problem.var_chooser = var_chooser.MinDomain
 
     variables = [(x, y)
                  for x in range(SIZE)
@@ -399,4 +399,5 @@ if __name__ == '__test_example__':
     bprob = csp.Problem()
     build(bprob)
     sol = bprob.get_solution()
+    print()
     print_assign_grid(sol)

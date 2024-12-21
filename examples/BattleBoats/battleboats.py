@@ -43,7 +43,13 @@ from csp_solver import variable
 
 # %% constants
 
-PUZ_PATH ="examples/BattleBoats/BB_Puzzles/"
+# this allows running from tests or BattleBoats,
+#  but could get it wrong if examples in the path above CSPSolver
+if 'examples' in os.path.abspath(os.curdir):
+    PUZ_PATH = "./BB_Puzzles/"
+else:
+    PUZ_PATH = "./examples/BattleBoats/BB_Puzzles/"
+
 
 SIZE = 10
 SIZE_P1 = SIZE + 1
@@ -886,6 +892,7 @@ def add_basic(boatprob):
     #  boats should not overlap or touch
     boatprob.add_constraint(BoatBoundaries(), BOATS)
 
+
 def build_one(boatprob):
     """Battleship/Commodore problem from Games Magazine September 2019."""
 
@@ -906,6 +913,7 @@ def build_one(boatprob):
     boatprob.add_constraint(BoatEnd(2, 1, UP), BOATS)
     boatprob.add_constraint(BoatEnd(9, 7, DOWN), BOATS)
 
+
 def build_two(boatprob):
     """Battleship/Seaman problem from Games Magazine September 2019."""
 
@@ -915,6 +923,7 @@ def build_two(boatprob):
 
     for con in cons:
         boatprob.add_constraint(con, BOATS)
+
 
 def build_three(boatprob):
     """Battleship/Admiral problem from Games Magazine September 2019."""
@@ -936,6 +945,7 @@ def build_four(boatprob):
 
     for con in cons:
         boatprob.add_constraint(con, BOATS)
+
 
 def build_five(boatprob):
     """Randomly generated build."""
