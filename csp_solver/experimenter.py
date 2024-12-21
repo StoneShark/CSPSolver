@@ -11,7 +11,7 @@ Two interfaces are required to be passed to do_stuff:
     which build.
 
  2. show_solution - a function that gets a solution (as an
-    assignment dictionary) and the build number used; it
+    assignment dictionary) and the build index used; it
     should print an understandable version of the solution.
 
 Created on Thu Jun 15 15:45:11 2023
@@ -32,6 +32,7 @@ from . import problem
 from . import solver
 from . import var_chooser
 
+
 # %% constants
 
 SOLVERS = None
@@ -42,6 +43,7 @@ def load_class_lists():
     """Only load these when they are needed.
     Loading when importing the module does bad things in the
     test suite (i.e. there are bad classes defined)."""
+    # pylint: disable=global-statement
 
     global SOLVERS, VAR_CHOOSERS, ARC_CONSIST
 
@@ -68,8 +70,8 @@ TIMERS = ['none', PROFILE, TIMEIT_ONE, TIMEIT]
 
 STD_INDENT = '    '
 
-# %% experiments
 
+# %% experiments
 
 def run_the_choosers(cargs, build):
     """Run all the chooser, timing them."""
@@ -89,7 +91,7 @@ def run_the_choosers(cargs, build):
         prob_inst.var_chooser = chooser
 
         print(f'{chooser.__name__:20}',
-              f'{timeit.timeit(prob_inst.get_solution, number = 1):10}')
+              f'{timeit.timeit(prob_inst.get_solution, number=1):10}')
 
 
 def run_the_solvers(cargs, build):
@@ -109,7 +111,7 @@ def run_the_solvers(cargs, build):
         build(prob_inst)
 
         print(f'{slvr.__class__.__name__:25}',
-              f'{timeit.timeit(prob_inst.get_solution, number = 1):10}')
+              f'{timeit.timeit(prob_inst.get_solution, number=1):10}')
 
 
 def build_the_problem(cargs, build):
@@ -156,7 +158,7 @@ def build_and_solve(cargs, build):
     solve_the_problem(cargs, build_the_problem(cargs, build))
 
 
-def solve_it(cargs, build, show_solution):
+def solve_it(cargs, build, bindex, show_solution):
     """Run the problem solver.
 
     The problem can only be solved once, so TIMEIT (x100)
@@ -165,7 +167,7 @@ def solve_it(cargs, build, show_solution):
     if cargs.timer == TIMEIT:
         print('Run time (x100):',
               timeit.timeit(lambda : build_and_solve(cargs, build),
-                            number = 100))
+                            number=100))
         return
 
     prob_inst = build_the_problem(cargs, build)
@@ -179,35 +181,46 @@ def solve_it(cargs, build, show_solution):
     if cargs.timer == PROFILE:
         cProfile.runctx('solve_the_problem(cargs, prob_inst)',
                         globals(), locals())
+        return
 
-    elif cargs.timer == TIMEIT_ONE:
+    if cargs.timer == TIMEIT_ONE:
         print('Run time:',
               timeit.timeit(lambda : solve_the_problem(cargs, prob_inst),
-                            number = 1))
-    else:
+                            number=1))
+        return
 
-        start = datetime.datetime.now()
-        print('Start Time:', start)
+    start = datetime.datetime.now()
+    print('Start Time:', start)
 
-        sol = solve_the_problem(cargs, prob_inst)
+    sol = solve_the_problem(cargs, prob_inst)
 
-        print('Solve time:', datetime.datetime.now() - start)
+    print('Solve time:', datetime.datetime.now() - start)
 
-        if cargs.all:
-            print(f'\nFound {len(sol)} solutions.')
+    nsols = len(sol)
+    if cargs.all:
+        print(f'\nFound {len(sol)} solutions.')
 
-        elif cargs.unique:
-            if len(sol) == 1:
-                print('Solution is unique.')
-                show_solution(sol[0], cargs.build - 1)
-            else:
-                print('There is not a unique solution.')
-
-        elif sol:
-            show_solution(sol, cargs.build - 1)
-
+    elif cargs.unique:
+        if nsols == 1:
+            print('\nSolution is unique.')
         else:
-            print('\nNo solutions')
+            print('\nThere is not a unique solution.')
+
+    elif sol:
+        print('\n')
+        show_solution(sol, bindex)
+        return
+
+    else:
+        print('\nNo solutions')
+        return
+
+    if nsols > cargs.show_n:
+        print("Showing first 5 solutions:\n")
+
+    for one_sol in sol[:cargs.show_n]:
+        show_solution(one_sol, bindex)
+        print('\n')
 
 
 # %%  define the parser
@@ -254,6 +267,9 @@ def define_parser(nbr_builds):
         |n
         If --timer is not used, the 'wall clock' time to compute the
         solution will be shown.
+        |n
+        Only one 'all' type parameter may be used: --solver all,
+        --var_chooser all, --all, or --all_builds.
         """,
         formatter_class=MultilineFormatter)
 
@@ -318,6 +334,18 @@ def define_parser(nbr_builds):
                         This option is limited to the number of build functions
                         provided to the experimenter.
                         Default: %(default)s""")
+
+    parser.add_argument('--show_n', action='store', default=5,
+                        type=int,
+                        help="""If multiple solutions found, show at
+                        most n of them (only if --all or --unique).
+                        Default: %(default)s""")
+
+    parser.add_argument('--all_builds', action='store_true', default=False,
+                        help="""If there are multiple builds supplied
+                        run them all. --build is ignore if this is provided.
+                        Default: %(default)s""")
+
     return parser
 
 
@@ -334,7 +362,29 @@ def parse_args(nbr_builds):
         sys.exit()
 
     if cargs.all and cargs.unique:
-        print('--all and --unique cannot both be used.')
+        print('--all and --unique cannot be used together.')
+        sys.exit()
+
+    if ((cargs.all or cargs.unique)
+            and cargs.solver == solver.MinConflictsSolver.__name__):
+        print('MinConflictsSolver can only find one solution.')
+        cargs.all = False
+        cargs.unique = False
+
+    if (cargs.solver == solver.MinConflictsSolver.__name__
+            and cargs.var_chooser != KEEP):
+        print("Var chooser isn't used with MinConflictSolver.")
+        cargs.var_chooser = KEEP
+
+    if (not cargs.forward
+            and cargs.arc_consist != KEEP
+            and ARC_CONSIST[cargs.arc_consist]):
+        print("Arc Consistency behavior is not well defined without --forward.")
+
+    all_count = [cargs.all_builds, cargs.var_chooser == ALL,
+                 cargs.solver == ALL, cargs.all].count(True)
+    if all_count > 1:
+        print("Only one ALL type option may be selected.")
         sys.exit()
 
     return cargs
@@ -371,30 +421,26 @@ def do_stuff(build_param, show_solution):
 
     cargs = parse_args(nbr_builds)
 
-    build = build_param[cargs.build - 1] if nbr_builds else build_param
+    if cargs.all_builds and nbr_builds > 1:
+        for bindex, build in enumerate(build_param):
+            print_doc_str(build.__doc__)
+            solve_it(cargs, build, bindex, show_solution)
+            print('\n')
+        return
+
+    if isinstance(build_param, list):
+        build = build_param[cargs.build - 1]
+    else:
+        build = build_param
+
     print_doc_str(build.__doc__)
 
     if cargs.solver == ALL:
         run_the_solvers(cargs, build)
-        sys.exit()
+        return
 
     if cargs.var_chooser == ALL:
         run_the_choosers(cargs, build)
-        sys.exit()
+        return
 
-    if ((cargs.all or cargs.unique)
-            and cargs.solver == solver.MinConflictsSolver.__name__):
-        print('MinConflictsSolver can only find one solution.')
-        cargs.all = False
-        cargs.unique = False
-
-    if cargs.solver == solver.MinConflictsSolver.__name__  \
-        and cargs.var_chooser != KEEP:
-        print("Var chooser isn't used with MinConflictSolver.")
-        sys.exit()
-
-    if (not cargs.forward and cargs.arc_consist != KEEP
-        and ARC_CONSIST[cargs.arc_consist]):
-        print("Arc Consistency behavior is not well defined without --forward.")
-
-    solve_it(cargs, build, show_solution)
+    solve_it(cargs, build, cargs.build - 1, show_solution)
