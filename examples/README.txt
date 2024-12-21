@@ -55,7 +55,7 @@ math_ex          an example of solving a small system of equations with a
                  three solvers are used.
 
 queens           a CSP to solve the 8 queens problem which shows using 
-                 functools.partial to setup BoolFunction constraint.
+                 functools.partial to setup a BoolFunction constraint.
 
 sendmore         a CSP to solve the send + more = money problem. Two
                  representations are shown:
@@ -70,6 +70,3 @@ sendmore         a CSP to solve the send + more = money problem. Two
 sudoku           a CSP solver for Sudoku puzzles. The magic is all in the
                  definition of the AllDifferent unit lists.
 
-
-                 
-                 

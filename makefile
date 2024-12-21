@@ -4,7 +4,7 @@ SOURCES = csp_solver/*.py csp_solver/constraint/*.py
 TESTS = tests/test_*.py
 
 
-all: clean unit_tests pylint
+all: clean all_tests pylint
 
 #  clean
 #
@@ -48,7 +48,8 @@ all_tests: $(SOURCES) $(TESTS)
 
 .PHONY: examples
 examples:
-	pytest -vs tests/test_examples.py --run_slow
+	@echo Running all __test_examples__ sections with pytest (including the slow ones).
+	pytest -vs tests/test_z_examples.py --run_slow
 
 
 #  test individual files

@@ -15,8 +15,7 @@ import sys
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__),
                                                 '../..')))
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__),
-                                                '.')))
+sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 
 from csp_solver import constraint as cnstr
 from csp_solver import list_constraint as lcnstr
