@@ -263,7 +263,6 @@ class Backtracking(Solver):
 
             local_assigns = assignments | {vobj.name : value}
             if not self._assign_extra(vobj.name, value):
-                self._pop_extra()
                 continue
 
             if not self._consistent(vobj.name, local_assigns):
@@ -306,8 +305,6 @@ class Backtracking(Solver):
 
 
 # %% non recursive backtracking
-
-# TODO integrate extra_data (after it's right for Backtracking)
 
 class NonRecBacktracking(Solver):
     """A backtracking solver that does not use recursion."""
@@ -376,6 +373,8 @@ class NonRecBacktracking(Solver):
         if not values:
 
             del self._assignments[var_name]
+            self._pop_extra()
+
             while self._queue:
                 var_name, values, self._unassigned = self._queue.pop()
 
@@ -385,8 +384,9 @@ class NonRecBacktracking(Solver):
 
                 if values:
                     break
-                del self._assignments[var_name]
 
+                del self._assignments[var_name]
+                self._pop_extra()
 
             else:   # if not queue and not values
                 return False
@@ -399,6 +399,9 @@ class NonRecBacktracking(Solver):
         """Test the new assignment to see if the solution is still
         consistent. If consistent, adjust the domain histories
         as appropriate."""
+
+        if not self._assign_extra(var_name, self._assignments[var_name]):
+            return False
 
         if not self._consistent(var_name, self._assignments):
             return False
