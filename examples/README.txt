@@ -48,7 +48,7 @@ MasterMind       examples using CSP to solve master mind puzzles. After each
                  are four position and six colors. Puzzles 5 and 6 are six 
                  positions and nine colors. These examples demonstrate
                  effective use of the SetConstraints and ListConstraints.
-                 The experimenter is not used with these.
+                 The experimenter is only used with mmind_6_exp.py.
 
 math_ex          an example of solving a small system of equations with a 
                  CSP. The experimenter is not used in this example, but 

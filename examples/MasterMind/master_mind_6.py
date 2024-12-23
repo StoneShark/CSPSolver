@@ -35,13 +35,8 @@ import master_mind as mmind
 # 6 positions: 9 colors
 puz = mmind.setup(6, 9)
 
-# speeds up problem solving by about half second (all steps)
-# note ListContraints do not support forward checking
 puz.enable_forward_check()
-
-# don't do any extra work to choose vars
-# all steps a few tenths of second faster
-puz.var_chooser = var_chooser.UseFirst
+puz.var_chooser = var_chooser.MinDomain
 
 
 mmind.get_print_sols(puz)

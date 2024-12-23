@@ -207,20 +207,20 @@ def solve_it(cargs, build, bindex, show_solution):
             print('\nThere is not a unique solution.')
 
     elif sol:
-        print('\n')
-        show_solution(sol, bindex)
+        if cargs.show_n:
+            print('\n')
+            show_solution(sol, bindex)
         return
 
     else:
         print('\nNo solutions')
         return
 
-    if nsols > cargs.show_n:
+    if cargs.show_n and nsols > cargs.show_n:
         print("Showing first 5 solutions:\n")
 
     for one_sol in sol[:cargs.show_n]:
         show_solution(one_sol, bindex)
-        print('\n')
 
 
 # %%  define the parser
@@ -337,7 +337,8 @@ def define_parser(nbr_builds):
 
     parser.add_argument('--show_n', action='store', default=5,
                         type=int,
-                        help="""If multiple solutions found, show at
+                        help="""0 will prevent any solution from being
+                        printed.  If multiple solutions found, show at
                         most n of them (only if --all or --unique).
                         Default: %(default)s""")
 
