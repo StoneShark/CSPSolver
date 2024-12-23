@@ -15,7 +15,7 @@ import stubs
 # %% good vs bad
 
 
-GOOD_CHOOSERS = csp.var_chooser.VarChooser.__subclasses__()
+GOOD_CHOOSERS = csp.var_chooser.VarChooser.derived()
 
 class BadChooser(csp.var_chooser.VarChooser):
     pass

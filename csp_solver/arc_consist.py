@@ -61,6 +61,15 @@ class ArcConIF(abc.ABC):
         self._spec = pspec
 
 
+    @classmethod
+    def derived(cls):
+        """A class method to find all classes derived from this class."""
+
+        dclasses = cls.__subclasses__()
+        return dclasses + [item for dclass in dclasses
+                           for item in dclass.__subclasses__()]
+
+
     @abc.abstractmethod
     def arc_consist(self, assigned):
         """Adjust the domains of the variables according to
@@ -68,6 +77,7 @@ class ArcConIF(abc.ABC):
 
         Return False if the problem becomes overconstrained;
         True otherwise."""
+
 
 
 # %% ArcCon3

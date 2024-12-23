@@ -68,6 +68,15 @@ class VarChooser(abc.ABC):
         """Return the name of the class (even if we have an instance)."""
         return cls.__name__
 
+    @classmethod
+    def derived(cls):
+        """A class method to find all classes derived from this class."""
+
+        dclasses = cls.__subclasses__()
+        return dclasses + [item for dclass in dclasses
+                           for item in dclass.__subclasses__()]
+
+
 
 # %% concrete classes
 

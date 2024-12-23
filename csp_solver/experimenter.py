@@ -47,14 +47,13 @@ def load_class_lists():
 
     global SOLVERS, VAR_CHOOSERS, ARC_CONSIST
 
-    SOLVERS = {slvr.__name__ : slvr()
-               for slvr in solver.Solver.__subclasses__()}
+    SOLVERS = {slvr.__name__ : slvr() for slvr in solver.Solver.derived()}
 
     VAR_CHOOSERS = {varc.__name__ : varc
-                    for varc in var_chooser.VarChooser.__subclasses__()}
+                    for varc in var_chooser.VarChooser.derived()}
 
     ARC_CONSIST = {arc_con.__name__ : arc_con()
-                   for arc_con in arc_consist.ArcConIF.__subclasses__()}
+                   for arc_con in arc_consist.ArcConIF.derived()}
     ARC_CONSIST['none'] = None
 
 
@@ -158,6 +157,36 @@ def build_and_solve(cargs, build):
     solve_the_problem(cargs, build_the_problem(cargs, build))
 
 
+def print_results(show_solution, cargs, sol, bindex):
+    """Decide what solutions to print."""
+
+    nsols = len(sol)
+    if cargs.all:
+        print(f'\nFound {len(sol)} solutions.')
+
+    elif cargs.unique:
+        if nsols == 1:
+            print('\nSolution is unique.')
+        else:
+            print('\nThere is not a unique solution.')
+
+    elif sol:
+        if cargs.show_n:
+            print('\n')
+            show_solution(sol, bindex)
+        return
+
+    else:
+        print('\nNo solutions')
+        return
+
+    if cargs.show_n and nsols > cargs.show_n:
+        print("Showing first 5 solutions:\n")
+
+    for one_sol in sol[:cargs.show_n]:
+        show_solution(one_sol, bindex)
+
+
 def solve_it(cargs, build, bindex, show_solution):
     """Run the problem solver.
 
@@ -191,36 +220,10 @@ def solve_it(cargs, build, bindex, show_solution):
 
     start = datetime.datetime.now()
     print('Start Time:', start)
-
     sol = solve_the_problem(cargs, prob_inst)
 
     print('Solve time:', datetime.datetime.now() - start)
-
-    nsols = len(sol)
-    if cargs.all:
-        print(f'\nFound {len(sol)} solutions.')
-
-    elif cargs.unique:
-        if nsols == 1:
-            print('\nSolution is unique.')
-        else:
-            print('\nThere is not a unique solution.')
-
-    elif sol:
-        if cargs.show_n:
-            print('\n')
-            show_solution(sol, bindex)
-        return
-
-    else:
-        print('\nNo solutions')
-        return
-
-    if cargs.show_n and nsols > cargs.show_n:
-        print("Showing first 5 solutions:\n")
-
-    for one_sol in sol[:cargs.show_n]:
-        show_solution(one_sol, bindex)
+    print_results(show_solution, cargs, sol, bindex)
 
 
 # %%  define the parser

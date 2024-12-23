@@ -52,6 +52,14 @@ class Solver(abc.ABC):
         self._solve_type = SolveType.ONE
 
 
+    @classmethod
+    def derived(cls):
+        """A class method to find all classes derived from this class."""
+
+        dclasses = cls.__subclasses__()
+        return dclasses + [item for dclass in dclasses
+                           for item in dclass.__subclasses__()]
+
     @property
     def chooser(self):
         """Return the chooser property."""
@@ -482,6 +490,71 @@ class NonRecBacktracking(Solver):
             return [sol1]
 
         assert False, "Unknown solver type"
+
+
+# %% bare non recursive backtracker
+
+class BareNRBack(NonRecBacktracking):
+    """A backtracking solver that does not use recursion
+    AND does not check for extra data, forward checking
+    or arc consistency checking.
+    This eliminates testing if the option is used."""
+
+
+    @NonRecBacktracking.arc_con.setter
+    def arc_con(self, value):
+        """raise exception -- property may not be set"""
+        if value:
+            raise ValueError("BareNRBack does not support arc consistency.")
+
+    @NonRecBacktracking.forward.setter
+    def forward(self, value):
+        """raise exception -- property may not be set"""
+        if value:
+            raise ValueError("BareNRBack does not support forward checking.")
+
+    def enable_forward_check(self):
+        """raise exception -- property may not be set"""
+        raise ValueError("BareNRBack does not support forward checking.")
+
+    @NonRecBacktracking.extra.setter
+    def extra(self, value):
+        """raise exception -- property may not be set"""
+        if value:
+            raise ValueError("BareNRBack does not support extra data.")
+
+
+    def _choose_new_assign(self, var_name, values):
+        """Choose a new value for var_name from values updating
+        assignments. If there are no values left for var_name,
+        check the queue for more variables.
+
+        Return var_name and values if an assignment can be made,
+        else False."""
+
+        if not values:
+            del self._assignments[var_name]
+
+            while self._queue:
+                var_name, values, self._unassigned = self._queue.pop()
+                if values:
+                    break
+
+                del self._assignments[var_name]
+
+            else:   # if not queue and not values
+                return False
+
+        self._assignments[var_name] = values.pop()
+        return var_name, values
+
+
+    def _still_consistent(self, var_name):
+        """Test the new assignment to see if the solution is still
+        consistent."""
+
+        return self._consistent(var_name, self._assignments)
+
 
 
 # %% Minimum Conflicts Solver

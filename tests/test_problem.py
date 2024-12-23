@@ -180,7 +180,8 @@ class TestProblem:
 
 
     @pytest.mark.parametrize('slvr', [solver.Backtracking(),
-                                      solver.NonRecBacktracking()])
+                                      solver.NonRecBacktracking(),
+                                      solver.BareNRBack()])
     def test_math_all(self, math_fixt, slvr):
 
         math_fixt.solver = slvr
@@ -198,8 +199,8 @@ class TestProblem:
             math_fixt.get_all_solutions()
 
 
-    @pytest.mark.parametrize('slvr', solver.Solver.__subclasses__())
-    @pytest.mark.parametrize('vchsr', var_chooser.VarChooser.__subclasses__())
+    @pytest.mark.parametrize('slvr', solver.Solver.derived())
+    @pytest.mark.parametrize('vchsr', var_chooser.VarChooser.derived())
     def test_math_prob_one(self, math_fixt, slvr, vchsr):
 
         tsolver = slvr()
@@ -231,13 +232,10 @@ class TestProblem:
         return test_prob
 
 
-    @pytest.mark.parametrize('slvr', [solver.Backtracking(),
-                                      solver.NonRecBacktracking(),
-                                      solver.MinConflictsSolver()]
-                            )
+    @pytest.mark.parametrize('slvr', solver.Solver.derived())
     def test_math_no_sols(self, math_no_fixt, slvr):
 
-        math_no_fixt.solver = slvr
+        math_no_fixt.solver = slvr()
         sol = math_no_fixt.get_solution()
 
         assert sol == None
