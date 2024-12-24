@@ -160,12 +160,11 @@ def build_and_solve(cargs, build):
 def print_results(show_solution, cargs, sol, bindex):
     """Decide what solutions to print."""
 
-    nsols = len(sol)
     if cargs.all:
         print(f'\nFound {len(sol)} solutions.')
 
     elif cargs.unique:
-        if nsols == 1:
+        if len(sol) == 1:
             print('\nSolution is unique.')
         else:
             print('\nThere is not a unique solution.')
@@ -180,7 +179,7 @@ def print_results(show_solution, cargs, sol, bindex):
         print('\nNo solutions')
         return
 
-    if cargs.show_n and nsols > cargs.show_n:
+    if cargs.show_n and len(sol) > cargs.show_n:
         print("Showing first 5 solutions:\n")
 
     for one_sol in sol[:cargs.show_n]:
