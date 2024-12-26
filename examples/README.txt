@@ -12,7 +12,7 @@ BattleBoats      solutions to the solitary battleship puzzles from
                  into 8 new constraint types. A unique variable choosing
                  order is used. Several representations are provided.
                  Some are very bad--it is an NP-complete problem.
-                 Seven example puzzles are included.
+                 Example puzzles are included.
 
 boris            an example from the web that was used to explain arc 
                  consistency.

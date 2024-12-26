@@ -8,7 +8,7 @@ ColSum(col, sol_sum)
 CellEmpty(row, col)
 BoatEnd(row, col, continue_direction)
 BoatMid(row, col)
-BoatSub(row, col)
+Submarine(row, col)
 
 continue_direction ::= "UP" | "DOWN" | "RIGHT" | "LEFT"
 
@@ -28,7 +28,7 @@ json file - duplicate keys are allowed
     "RowSum" : [0, 2, 1, 3, 0, 7, 1, 4, 1, 1],
     "ColSum" : [1, 3, 1, 3, 1, 0, 3, 0, 4, 4],
     "EmptyCell" : [4, 2],
-    "Sumbarine" : [4, 1],
+    "Submarine" : [4, 1],
     "BoatTop" : [4, 10]
     "BoatBottom" : [4, 10]
     "BoatLeft" : [4, 10]

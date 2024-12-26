@@ -3,6 +3,6 @@
     "ColSum" : [2, 1, 2, 1, 1, 1, 2, 3, 1, 6],
     "EmptyCell" : [10, 1],
     "EmptyCell" : [10, 10],
-    "Sumbarine" : [3, 4]
+    "Submarine" : [3, 4]
 }
     
