@@ -14,6 +14,11 @@ If a modules has no test it should include:
         skipped = True
         reason = 'Support module'  # or other explaination
 
+run_slow is provided to the test in the initial
+globals dicitonary.  It will be true if --run_slow
+was on the command line. The test can thus choose
+different tests based on expected test time.
+
 Created on Thu Dec 19 07:20:46 2024
 @author: Ann"""
 
@@ -27,7 +32,7 @@ SKIPPED = 'skipped'
 REASON = 'reason'
 
 runs_slow = ['battleboats_two',
-             # these don't work:  'battleboats_three', 'battleboats_extra',
+             # these don't work:  'battleboats_extra',
             'master_mind_5',
             'master_mind_6']
 
@@ -53,9 +58,15 @@ def get_examples():
 
 
 @pytest.mark.parametrize('epath', get_examples())
-def test_example(epath):
+def test_example(pytestconfig, epath):
     """If the test has the TEXT_EXAMPLE tag,
     run the modules with that name.
+
+    run_slow is provided to the test in the initial
+    globals dicitonary.  It will be true if --run_slow
+    was on the command line. The test can thus choose
+    different tests based on expected test time.
+
     Otherwise, report a test failure."""
 
     with open(epath, 'r', encoding='utf-8') as file:
@@ -64,7 +75,13 @@ def test_example(epath):
     if TEST_EXAMPLE not in ''.join(lines):
         pytest.fail(reason="No __test_example__ in file.")
 
-    gdict = runpy.run_path(epath, run_name=TEST_EXAMPLE)
+    idict = {'run_slow': False}
+    if pytestconfig.getoption('run_slow'):
+        idict = {'run_slow': True}
+
+    gdict = runpy.run_path(epath,
+                           init_globals=idict,
+                           run_name=TEST_EXAMPLE)
 
     if gdict.get(SKIPPED, False):
         pytest.skip(reason=gdict.get(REASON, 'No reason given'))
