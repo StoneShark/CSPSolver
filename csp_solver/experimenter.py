@@ -160,7 +160,7 @@ def build_and_solve(cargs, build):
 def print_results(show_solution, cargs, sol, bindex):
     """Decide what solutions to print."""
 
-    if cargs.all:
+    if cargs.all and sol:
         print(f'\nFound {len(sol)} solutions.')
 
     elif cargs.unique:
@@ -169,7 +169,7 @@ def print_results(show_solution, cargs, sol, bindex):
         else:
             print('\nThere is not a unique solution.')
 
-    elif sol:
+    elif not cargs.all and sol:
         if cargs.show_n:
             print('\n')
             show_solution(sol, bindex)

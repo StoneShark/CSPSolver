@@ -54,7 +54,7 @@ class Variable:
     def set_domain(self, values):
         """Set the domain list and clear the state data to
         assure consistency.
-        This is safe during preprocessing, but not at anyother time."""
+        This is safe during preprocessing, but not at any other time."""
 
         self._domain = list(values)
         self._hidden = []

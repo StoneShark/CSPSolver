@@ -132,7 +132,12 @@ class ProblemSpec:
 
             if constraint.preprocess():
                 self.constraints.remove(constraint)
+                # print(constraint, ' removed.')
 
             else:
                 for vname in constraint.get_vnames():
                     self.cnstr_dict[vname] += [constraint]
+
+        # print('Domains after preprocess:')
+        # for name, vobj in self.variables.items():
+        #     print(name, vobj.get_domain())
