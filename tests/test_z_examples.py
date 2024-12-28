@@ -31,8 +31,8 @@ TEST_EXAMPLE = '__test_example__'
 SKIPPED = 'skipped'
 REASON = 'reason'
 
-runs_slow = ['battleboats_two',
-             # these don't work:  'battleboats_extra',
+runs_slow = ['bboat_grid',
+             # this don't work:  'bboat_extra',
             'master_mind_5',
             'master_mind_6']
 
