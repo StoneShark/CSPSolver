@@ -51,6 +51,11 @@ RIGHT = 1
 DOWN = 2
 LEFT = 3
 
+CONT_POS =  ((-1, 0),
+             (0, 1),
+             (1, 0),
+             (0, -1))
+
 
 # %%  grid and boat helper functions
 
@@ -172,7 +177,7 @@ def grids_mid(x, y, orient, boat_len):
 
 def grids_bound_end(x, y, direct):
     """Return a set of cells that cannot contain boats based
-    upon an end constraint.
+    upon an end constraint. These are known water cells.
 
     Compute the orientation and start location (if we don't have it).
     Collect the boundaries cells of a boat of length 2.
@@ -205,7 +210,7 @@ def grids_bound_end(x, y, direct):
 
 def grids_bound_mid(x, y):
     """Return a set of cells that cannot contain boats based
-    upon an mid boat part.
+    upon an mid boat part. These are known water cells.
 
     If it's on an edge, we know the boat orientation and return
     5 cells. Otherwise only the diagonals.
@@ -304,6 +309,39 @@ def empty_cells(empty_list, vobjs_list, func):
             if any(coord in empty_list for coord in needed):
                 if not func(bobj, value):
                     return False
+
+    return True
+
+
+def remove_starts(bobj, no_start):
+    """Remove any domain values whose location is in no_start.
+    Not sure this is useful for any bobj other than subs."""
+
+    for value in bobj.get_domain()[:]:
+        if (value[0], value[1]) in no_start:
+
+            if not bobj.remove_dom_val(value):
+                return False
+
+    return True
+
+
+def remove_starts_ends(bobj, no_ends):
+    """Remove domain values that start or end in no_ends."""
+
+    domain = bobj.get_domain()
+
+    for x, y in no_ends:
+
+        # if value is invalid, it will fail the domain test below
+        end_list = ((x, y, VERT),
+                    (x, y, HORZ),
+                    (x, y - 1, VERT),
+                    (x - 1, y, HORZ))
+
+        for end in end_list:
+            if end in domain and not bobj.remove_dom_val(end):
+                return False
 
     return True
 

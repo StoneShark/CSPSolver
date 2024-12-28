@@ -16,7 +16,7 @@ Constraints defined:
         BoatEnd - puzzle specifies a boat end part
                   with opening up, down, left, right
         BoatMid - puzzle specifies a boat mid part,
-                  boat may extend in either direction
+                  boat may extend in any direction
         BoatSub - puzzle specifies a submarine (boat length of 1)
 
 lru cache is used for common analysis functions.
@@ -54,6 +54,7 @@ class BoatBoundaries(cnstr.Constraint):
     def __repr__(self):
         return 'BoatBoundaries()'
 
+
     @staticmethod
     def satisfied(boat_dict):
         """Test the constraint."""
@@ -81,8 +82,8 @@ class BoatBoundaries(cnstr.Constraint):
 
 
     def forward_check(self, assignments):
-        """Hide all values that are in the boundary or already
-        occupied."""
+        """Hide all domain values that are in boat boundaries
+        or already occupied."""
 
         hide_list = set()
         for bname, (x, y, orient) in assignments.items():
@@ -207,7 +208,7 @@ class RowSum(cnstr.Constraint):
             row_coords = [(self._row, y) for y in range(1, bboat.SIZE_P1)]
             if not bboat.empty_cells(row_coords, self._vobjs,
                                      variable.Variable.remove_dom_val):
-                raise cnstr.PreprocessorConflict(f'{self} is overconstrained.')
+                raise cnstr.PreprocessorConflict(str(self))
             return True
 
         # remove boats that wont fit in row_sum
@@ -222,8 +223,7 @@ class RowSum(cnstr.Constraint):
                 if (x == self._row
                         and orient == bboat.HORZ
                         and not vobj.remove_dom_val(value)):
-                    raise cnstr.PreprocessorConflict(
-                        f'{self} is overconstrained.')
+                    raise cnstr.PreprocessorConflict(str(self))
 
         return False
 
@@ -256,7 +256,6 @@ class RowSum(cnstr.Constraint):
 
         empty_cols = [(self._row, y)
                       for y in range(1, bboat.SIZE + 1) if not occed_cols[y]]
-
         unassigned= [vobj for vobj in self._vobjs
                       if vobj.name not in assignments]
 
@@ -316,8 +315,8 @@ class ColSum(cnstr.Constraint):
         if not self._col_sum:
             col_coords = [(x, self._col) for x in range(1, bboat.SIZE_P1)]
             if not bboat.empty_cells(col_coords, self._vobjs,
-                               variable.Variable.remove_dom_val):
-                raise cnstr.PreprocessorConflict(f'{self} is overconstrained.')
+                                     variable.Variable.remove_dom_val):
+                raise cnstr.PreprocessorConflict(str(self))
             return True
 
         # remove boats that wont fit in col_sum
@@ -332,8 +331,7 @@ class ColSum(cnstr.Constraint):
                 if (y == self._col
                         and orient == bboat.VERT
                         and not vobj.remove_dom_val(value)):
-                    raise cnstr.PreprocessorConflict(
-                        f'{self} is overconstrained.')
+                    raise cnstr.PreprocessorConflict(str(self))
 
         return False
 
@@ -366,7 +364,6 @@ class ColSum(cnstr.Constraint):
 
         empty_rows = [(x, self._col)
                       for x in range(1, bboat.SIZE + 1) if not occed_rows[x]]
-
         unassigned= [vobj for vobj in self._vobjs
                       if vobj.name not in assignments]
 
@@ -376,7 +373,9 @@ class ColSum(cnstr.Constraint):
 
 
 class CellEmpty(cnstr.Constraint):
-    """The cell at row, col must be empty."""
+    """The cell at row, col must be empty.
+
+    Fully applied by the preprocessor, no use for forward_check."""
 
     def __init__(self, row, col):
         super().__init__()
@@ -407,8 +406,8 @@ class CellEmpty(cnstr.Constraint):
         contsrainted (it will raise exception)."""
 
         if not bboat.empty_cells([self._loc], self._vobjs,
-                           variable.Variable.remove_dom_val):
-            raise cnstr.PreprocessorConflict(f'{self} is overconstrained.')
+                                 variable.Variable.remove_dom_val):
+            raise cnstr.PreprocessorConflict(str(self))
 
         return True
 
@@ -494,34 +493,36 @@ class BoatEnd(cnstr.Constraint):
     def preprocess(self):
         """Given boat end and direction, we know which cells opposite of
         continue direction and sides (plus +1 in cont_dir) can be
-        removed from the domains of all variables.
-
-        Remove (row, col, bboat.VERT) from the domain of submarines,
-        they can't be put at (row, col).
+        removed from the domains of all variables. Those are
+        known water cells.
 
         If the clue specifies a destroyer location (length 2),
         find one that hasn't been reduced to one domain value
         and reduce it to the boat start location. When return,
         report that the constraint is fully processed.
 
-        For boats longer than 2, remove any values that put a middle
-        part of the boat at (row, col)."""
+        Remove subs all neighbors and the self location.
+
+        For boats longer than 2,
+        remove any boats that would start at the continue position,
+        remove any values that put a middle part of the boat at (row, col)."""
 
         empties = bboat.grids_bound_end(*self._loc, self._cont_dir)
         if not bboat.empty_cells(empties, self._vobjs,
-                           variable.Variable.remove_dom_val):
-            raise cnstr.PreprocessorConflict(f'{self} is overconstrained.')
+                                 variable.Variable.remove_dom_val):
+            raise cnstr.PreprocessorConflict(str(self))
 
         destroyer_loc = self._check_destroyer()
         fully = False
+        cont_pos = bboat.CONT_POS[self._cont_dir]
+        neighs = bboat.grid_neighs(*self._loc)
 
         for bobj in self._vobjs:
             length = bboat.BOAT_LENGTH[bobj.name]
 
             if length == 1:
-                loc = (*self._loc, bboat.VERT)
-                if loc in bobj.get_domain():
-                    bobj.remove_dom_val(loc)
+                if not bboat.remove_starts(bobj, neighs + [self._loc]):
+                    raise cnstr.PreprocessorConflict(str(self))
                 continue
 
             if length == 2:
@@ -531,28 +532,27 @@ class BoatEnd(cnstr.Constraint):
                     fully = True
                 continue
 
+            # length > 2
+            if not bboat.remove_starts_ends(bobj, [cont_pos]):
+                raise cnstr.PreprocessorConflict(str(self))
+
             for value in bobj.get_domain()[:]:
-
                 x, y, orient = value
-                end = bboat.get_end_loc(x, y, orient, length)
-
-                if self._loc in [(x, y), end]:
-                    continue
-
-                if self._loc in bboat.grids_occed(x, y, orient, length):
-                    bobj.remove_dom_val(value)
+                if (self._loc in bboat.grids_mid(x, y, orient, length)
+                        and not bobj.remove_dom_val(value)):
+                    raise cnstr.PreprocessorConflict(str(self))
 
         if destroyer_loc:
             # this clue specifies a destroyer location but
             # didn't find a destroyer var to reduce to it
-            raise cnstr.PreprocessorConflict(f'{self} is overconstrained.')
+            raise cnstr.PreprocessorConflict(
+                         f"{self} couldn't place destoryer.")
 
-        self._test_over_satis()
         return fully
 
-    # TODO is a forward check for BoatEnd useful?
-    # once constraint is met, remove boat end from other domains?
-    # if water encroaches on end ... place destroyer
+    # XXXX BoatEnd forward_check
+    #   very specific cases that require lots of computation
+    #   if boat assigned 3 away from open end, then have a desstroyer @ loc
 
 
 class BoatMid(cnstr.Constraint):
@@ -595,70 +595,46 @@ class BoatMid(cnstr.Constraint):
         return len(boat_dict) < bboat.B_CNT
 
 
-    def _remove_sub_dest(self, x, y):
-        """Remove submarines and destroyers from x, y (which is
-        a corner). Raise an exception if the domain becomes
-        over constrainted."""
-
-        for bobj in self._vobjs:
-            length = bboat.BOAT_LENGTH[bobj.name]
-            domain = bobj.get_domain()
-
-            if length == 1:
-                val = (x, y, bboat.VERT)
-                if val in domain and not bobj.remove_dom_val(val):
-                    raise cnstr.PreprocessorConflict(
-                            f'{self} is overconstrained.')
-
-            elif length == 2:
-
-                # if value is invalid, it will fail the domain test below
-                end_list = ((x, y, bboat.VERT),
-                            (x, y, bboat.HORZ),
-                            (x, y - 1, bboat.VERT),
-                            (x - 1, y, bboat.HORZ))
-
-                for end in end_list:
-                    if end in domain and not bobj.remove_dom_val(end):
-                        raise cnstr.PreprocessorConflict(
-                                f'{self} is overconstrained.')
-
-
     def preprocess(self):
-        """Remove the bounds from the domains of all the
-        variables. Bounds varies by where the mid part is.
+        """Use empty_cells to eliminate any boats that
+        would go through the known water cells returned
+        by grids_bound_mid.
 
-        If the constraint is on an edge and is 1 away from a corner,
-        remove the start & ends of submarines and destroyers from
-        the corner.
+        Remove subs from all neighboring cells and self loc.
+        Remove the starts & ends of all destroyers from
+        the neighboring cells and self loc.
+        Remove all starts and ends of other boats from self loc.
 
         Constraint is never fully applied here."""
 
-        bounds = bboat.grids_bound_mid(*self._loc)
+        if not bboat.empty_cells(bboat.grids_bound_mid(*self._loc),
+                                 self._vobjs,
+                                 variable.Variable.remove_dom_val):
+            raise cnstr.PreprocessorConflict(str(self))
 
-        if not bboat.empty_cells(bounds, self._vobjs,
-                           variable.Variable.remove_dom_val):
-            raise cnstr.PreprocessorConflict(f'{self} is overconstrained.')
+        neighs = bboat.grid_neighs(*self._loc)
+        for bobj in self._vobjs:
+            length = bboat.BOAT_LENGTH[bobj.name]
 
-        if self._loc in ((2, 1), (1, 2)):
-            self._remove_sub_dest(1, 1)
+            if length == 1:
+                if not bboat.remove_starts(bobj, neighs + [self._loc]):
+                   raise cnstr.PreprocessorConflict(str(self))
 
-        elif self._loc in ((9, 1), (10, 2)):
-            self._remove_sub_dest(10, 1)
+            elif length == 2:
+                if not bboat.remove_starts_ends(bobj, neighs + [self._loc]):
+                    raise cnstr.PreprocessorConflict(str(self))
 
-        elif self._loc in ((1, 9), (2, 10)):
-            self._remove_sub_dest(1, 10)
-
-        elif self._loc in ((10, 9), (9, 10)):
-            self._remove_sub_dest(10, 10)
+            else:
+                if not bboat.remove_starts_ends(bobj, [self._loc]):
+                    raise cnstr.PreprocessorConflict(str(self))
 
         return False
 
-
-    # TODO write forward_check for BoatMid
-    # once constraint is met, remove boat mid from other domains?
-    # once boat direction is known (e.g. water put in x-y neighbor),
-    #    we can extend the diags to 5 on each side
+    # XXXX  BoatMid forward_check
+    #   very specific cases that require lots of computation
+    #   if another boat assignment/boat boundary is two away from mid loc
+    #   then we know the orientation of the boat though mid and could extend
+    #   watter cells to 5 on each side
 
 
 class BoatSub(cnstr.Constraint):
@@ -669,7 +645,11 @@ class BoatSub(cnstr.Constraint):
     box (nieghbor's) from domain.
 
     If all 4 subs are assigned but none at (row, col) return False,
-    otherwise True."""
+    otherwise True.
+
+    No forward_check: either a boat was constrained to loc
+    and constraint is fully satisfied
+    or the constraint is over constrained."""
 
     def __init__(self, row, col):
         super().__init__()
@@ -701,14 +681,16 @@ class BoatSub(cnstr.Constraint):
 
 
     def preprocess(self):
-        """Remove domain values that would occupy (row, col) and it's
-        neighbors from all boats longer than 1.
+        """For all boats longer than 1, use empty_cells to
+        eliminate any boats that would go through the known
+        water cells (neighbors) and self location.
 
         Reduce the domain of one sub to this location and return
         that the constraint is fully processed."""
 
         fully = False
         not_placed = True
+        empties = bboat.grid_neighs(*self._loc) + [self._loc]
 
         for bobj in self._vobjs:
             length = bboat.BOAT_LENGTH[bobj.name]
@@ -720,14 +702,14 @@ class BoatSub(cnstr.Constraint):
                     fully = True
                 continue
 
-            empties = bboat.grid_neighs(*self._loc) + [self._loc]
             if not bboat.empty_cells(empties, [bobj],
-                               variable.Variable.remove_dom_val):
-                raise cnstr.PreprocessorConflict()
+                                     variable.Variable.remove_dom_val):
+                raise cnstr.PreprocessorConflict(str(self))
 
         if not_placed:
             # didn't find a sub var to reduce to loc
-            raise cnstr.PreprocessorConflict(f'{self} is overconstrained.')
+            raise cnstr.PreprocessorConflict(str(self),
+                                             "couldn't place sub.")
 
         return fully
 
@@ -737,6 +719,7 @@ class BoatSub(cnstr.Constraint):
 class BoatOrder(var_chooser.VarChooser):
     """Choose the variable assignment order based on
         1. any boats reduced to a single location
+           (boat1 is always reduced before boat2)
         2. longest unassigned boat by length."""
 
     @staticmethod
@@ -769,7 +752,9 @@ def add_basic(boatprob):
 
 
 def add_final(boatprob):
-    """IncOne constraints need to be added last."""
+    """IncOne constraints need to be added last so that any variables
+    whose domains have been reduced to one value can be excluded by
+    the preprocessor."""
 
     # reduces solutions from 2! * 3! * 4! = 288 to 1
     boatprob.add_constraint(IncOrder(), ['cruiser1', 'cruiser2'])
@@ -789,7 +774,8 @@ BOAT_CNSTR = {bboat.EMPTYCELL : CellEmpty,
 
 def build_cons(pairs):
     """Convert the pairs of values from the json problem statement
-    into constraints and variable assignments."""
+    into constraints and variable assignments. There may be
+    duplcate keys, the json reader returns the pairs."""
 
     cons = []
 
@@ -834,6 +820,7 @@ def build_puzzle(filename):
             boatprob.add_constraint(con, bboat.BOATS)
         add_final(boatprob)
 
+    build_func.__name__ = f'build_puzzle("{filename}")'
     build_func.__doc__ = filename + ':  \n' \
             + '\n'.join(str(c)+ '=' + str(v) for c, v in pairs)
 
