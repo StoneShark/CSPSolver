@@ -7,22 +7,27 @@
 
 variables - boats
 domains are locations that boats can be placed as tuples: (x, y, orientation)
-
-Constraints:
-    cnstr.Constraint - base class for other constraints
-    BoatBoundaries
-    IncOrder
-    RowSum - from puzzle
-    ColSum - from puzzle
-    CellEmpty - puzzle specifies an empty cell
-    BoatEnd - puzzle specifies a boat end part
-              with opening up, down, left, right
-    BoatMid - puzzle specifies a boat mid part,
-              boat may extend in either direction
-    BoatSub - puzzle specifies a submarine (boat length of 1)
-
 Uses the extra data feature of the constraint engine:
     BBExtra(extra_data.ExtraDataIF)
+
+Constraints:
+    BBoatConstraint - base class for other constraints using extra data
+
+    * BoatBoundaries
+    * IncOrder - reused directly from bboat_cnstr
+
+    These are all built on top of the bboat_cnstr contraint of the
+    same name:
+
+    * RowSum - puzzle specifies row sums
+    * ColSum - puzzles specifies column sumes
+    * CellEmpty - puzzle specifies an empty cell
+    * BoatEnd - puzzle specifies a boat end part
+                with opening up, down, left, right
+    * BoatMid - puzzle specifies a boat mid part,
+                boat may extend in either direction
+    * BoatSub - puzzle specifies a submarine (boat length of 1)
+
 
 Created on Fri May  5 03:40:16 2023
 @author: Ann"""
@@ -33,7 +38,6 @@ Created on Fri May  5 03:40:16 2023
 import collections
 import copy
 import enum
-import json
 
 import os
 import sys
@@ -42,96 +46,109 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__),
                                                 '../..')))
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 
+import battleboats as bboat
+import bboat_cnstr
+
 from csp_solver import constraint as cnstr
 from csp_solver import experimenter
 from csp_solver import extra_data
 from csp_solver import problem
-from csp_solver import solver
 from csp_solver import variable
-from csp_solver import var_chooser
-
-from battleboats import PUZ_PATH
-from battleboats import SIZE
-from battleboats import SIZE_P1
-from battleboats import BOAT_LENGTH
-from battleboats import BOATS
-from battleboats import B_CNT
-from battleboats import VERT
-from battleboats import HORZ
-from battleboats import INCS
-from battleboats import UP
-from battleboats import RIGHT
-from battleboats import DOWN
-from battleboats import LEFT
-
-from battleboats import get_end_loc
-from battleboats import grids_occed
-from battleboats import grids_bounding
-# from battleboats import grids_mid
-from battleboats import grids_bound_end
-# from battleboats import cache_clear
-from battleboats import cache_info
-from battleboats import pos_locs
-from battleboats import empty_cells
-# from battleboats import decode_to_constraints
-from battleboats import read_puzzle
 
 
 # %%  enums
 
-class EGrid(enum.IntEnum):
-    """Values for the grid of the extra data."""
+class EGrid(enum.Flag):
+    """Values for the grid of the extra data.
 
-    UNKNOWN = enum.auto()
-    BOUNDARY = enum.auto()
+    Done as flags so
+        - WATER is always set even for BOUNDARIES.
+        - Unassigned boat parts are clear (e.g. boat end from clues).
+        - Unidentified boat parts are clear (cells known to have
+        a boat part, but not what part)."""
 
-    WATER = enum.auto()
+    UNKNOWN = 0
 
-    BPART_START = enum.auto()
-    ROUND = BPART_START
-    END_TOP = enum.auto()
-    END_BOT = enum.auto()
-    END_LFT = enum.auto()
-    END_RGT = enum.auto()
-    MID = enum.auto()
-    UNK_PART = enum.auto()
-    BPART_END = UNK_PART
+    WATER = enum.auto()      # cell is water
+    BOAT_PART = enum.auto()  # cell contains a boat part (either assigned or not)
+    ASSIGNED = enum.auto()   # cell has been assigned with a full boat
+
+    # individual flag values -- but use the non-private ones below
+    _BOUNDARY = enum.auto()
+    _ROUND = enum.auto()
+    _END_TOP = enum.auto()
+    _END_BOT = enum.auto()
+    _END_LFT = enum.auto()
+    _END_RGT = enum.auto()
+    _MID = enum.auto()
+
+    BOUNDARY = _BOUNDARY | WATER
+
+    ROUND = _ROUND | BOAT_PART
+    END_TOP = _END_TOP | BOAT_PART
+    END_BOT = _END_BOT | BOAT_PART
+    END_LFT = _END_LFT | BOAT_PART
+    END_RGT = _END_RGT | BOAT_PART
+    MID = _MID | BOAT_PART
 
 
-    def ok_to_assign(self):
-        """Is it ok to assign a boat part."""
-        return self in [self.UNKNOWN, self.UNK_PART]
+    def ok_to_assign(self, what):
+        """Is it ok to assign a boat part:
+            1. have no value
+            2. are an unassigned boat part that matches what
+            3. are a unidentified boat part"""
+
+        return (not self
+                or (EGrid.ASSIGNED not in self
+                    and EGrid.BOAT_PART in self
+                    and what == self)
+                or (self == EGrid.BOAT_PART
+                    and EGrid.BOAT_PART in what))
 
 
     def is_boat_part(self):
         """Return True if self if a boat part"""
-        return self.BPART_START <= self <= self.BPART_END
+
+        return EGrid.BOAT_PART in self
+
 
     def no_new_parts(self):
         """Return True if a new part must not be assigned."""
-        return (self == self.BOUNDARY
-                or self.BPART_START <= self <= self.BPART_END)
+
+        return EGrid.WATER in self or EGrid.ASSIGNED in self
 
 
     def is_marked_empty(self):
-        """self should be a boundary condition. is it ok?"""
-        return self not in [self.BOUNDARY, self.WATER]
+        """Water flag should be set."""
+
+        return EGrid.WATER in self
+
 
     def char(self):
         """Return a char to print for self."""
+        # pylint: disable=multiple-statements
 
-        return ['q', '.', '-', 'w',
-                'o',
-                '\u02c4',
-                '\u02c5',
-                '\u02c2',
-                '\u02c3',
-                'x',
-                'p'][self]
+        if EGrid._BOUNDARY in self:       rchar = '~'
+        elif EGrid.WATER in self:         rchar = 'w'
+        elif EGrid._ROUND in self:        rchar = 'o'
+        elif EGrid._END_TOP in self:      rchar = '\u02c4'
+        elif EGrid._END_BOT in self:      rchar = '\u02c5'
+        elif EGrid._END_LFT in self:      rchar = '\u02c2'
+        elif EGrid._END_RGT in self:      rchar = '\u02c3'
+        elif EGrid._MID in self:          rchar = 'x'
+        elif EGrid.BOAT_PART in self:     rchar = 'p'
+        else:                             rchar = '.'
 
+        return rchar
 
 
 ENDS = [(EGrid.END_TOP, EGrid.END_BOT), (EGrid.END_LFT, EGrid.END_RGT)]
+
+BPART_FROM_DIRECT = [EGrid.END_BOT,    # cont_dir == UP
+                     EGrid.END_LFT,    # cont_dir == RIGHT
+                     EGrid.END_TOP,    # cont_dir == DOWN
+                     EGrid.END_RGT,    # cont_dir == LEFT
+                     ]
 
 
 # %% extra data
@@ -145,39 +162,89 @@ class BBExtra(extra_data.ExtraDataIF):
     grid - stores the information that we know from clues; info that
     the current assignments imply (boat parts and boarders);
     and some data that we can infer, e.g. there's boat part but we don't
-    know what type."""
+    know what type.
+
+    assigned - has a boat been placed here (may as a temporary assignment).
+    If False, the part was assigned by a clue (preprocessor) or
+    forward_check.
+
+    queue - a queue of tuples (vname, grid) where vname is the last variable
+    that was assigned to make the grid."""
 
     def __init__(self):
 
-        self.grid =  [[EGrid.UNKNOWN] * (SIZE_P1) for _ in range(SIZE_P1)]
+        self.grid =  [[EGrid.UNKNOWN] * bboat.SIZE_P1
+                      for _ in range(bboat.SIZE_P1)]
 
         self._queue = collections.deque()
+
+        # TODO should this contain the row/col sums to support
+        # forward checks for END and MID?
 
 
     def __str__(self):
         """Return the grid string."""
 
         ostr = '     1  2  3  4  5  6  7  8  9 10\n'
-        for x in range(1, SIZE_P1):
+        for x in range(1, bboat.SIZE_P1):
 
             rstr = f'{x:2}  '
-            for y in range(1, SIZE_P1):
+            for y in range(1, bboat.SIZE_P1):
                 rstr += ' ' + self.grid[x][y].char() + ' '
             ostr += rstr + '\n'
 
         return ostr
 
 
-    @staticmethod
-    def _assign_bpart(temp_grid, x, y, part):
-        """Assign the boat part if it's ok and return True,
-        else return False"""
+    def assign_grid(self, x, y, what):
+        """Assign the EGrid value if it's ok and return True,
+        else return False.
 
-        if temp_grid[x][y] == part:
+        This may be used by
+          1. the preprocessor -- assignments are permanent.
+          2. forward checks -- assignments will be popped along
+             with
+                a. any primary variable re-assignment, that is,
+                   the updates are kept until the next
+                   BBExtra.assign (that does a re-assignment)
+                b. BBExtra.pop."""
+
+        if self.grid[x][y] == what:
             return True
 
-        if temp_grid[x][y].ok_to_assign():
-            temp_grid[x][y] = part
+        if self.grid[x][y].ok_to_assign(what):
+            self.grid[x][y] = what
+            return True
+
+        return False
+
+
+    @staticmethod
+    def _show(grid):
+        """Return the grid string."""
+
+        ostr = '     1  2  3  4  5  6  7  8  9 10\n'
+        for x in range(1, bboat.SIZE_P1):
+
+            rstr = f'{x:2}  '
+            for y in range(1, bboat.SIZE_P1):
+                rstr += ' ' + grid[x][y].char() + ' '
+            ostr += rstr + '\n'
+
+        return ostr
+
+
+    @staticmethod
+    def _assign_temp_bpart(temp_grid, x, y, part):
+        """Assign the boat part and boundary if it's ok and return True,
+        else return False.
+        Don't overwrite water cells with boundary cells."""
+
+        if part == EGrid.BOUNDARY and EGrid.WATER in temp_grid[x][y]:
+            return True
+
+        if temp_grid[x][y].ok_to_assign(part):
+            temp_grid[x][y] = part | EGrid.ASSIGNED
             return True
 
         return False
@@ -191,23 +258,26 @@ class BBExtra(extra_data.ExtraDataIF):
         x, y, orient = loc
 
         if length == 1:
-            if not BBExtra._assign_bpart(temp_grid, x, y, EGrid.ROUND):
+            if not BBExtra._assign_temp_bpart(temp_grid, x, y, EGrid.ROUND):
                 return False
             return True
 
-        dx, dy = INCS[orient]
+        dx, dy = bboat.INCS[orient]
         ul_end, lr_end = ENDS[orient]
 
-        if not BBExtra._assign_bpart(temp_grid, x, y, ul_end):
+        if not BBExtra._assign_temp_bpart(temp_grid, x, y, ul_end):
             return False
 
         for i in range(1, length - 1):
-            if not BBExtra._assign_bpart(temp_grid, x + i*dx, y + i*dy,
-                                         EGrid.MID):
+            if not BBExtra._assign_temp_bpart(temp_grid,
+                                              x + i * dx, y + i * dy,
+                                              EGrid.MID):
                 return False
 
         i = length - 1
-        if not BBExtra._assign_bpart(temp_grid, x + i*dx, y + i*dy, lr_end):
+        if not BBExtra._assign_temp_bpart(temp_grid,
+                                          x + i * dx, y + i * dy,
+                                          lr_end):
             return False
 
         return True
@@ -216,25 +286,27 @@ class BBExtra(extra_data.ExtraDataIF):
     def assign(self, vname, val):
         """Update the grid with the boat (vname) assigned to
         location (val=(x, y, orient)).
+        The assignment might be a change of values for one
+        variable, so if the top of the queue has the same
+        variable then pop and try to reassign a new value.
         Update a copy of the grid in case an error is found.
 
         If a conflict is detected return False, otherwise True."""
 
-        length = BOAT_LENGTH[vname]
+        if self._queue and vname == self._queue[-1][0]:
+            self.pop()
+
+        length = bboat.BOAT_LENGTH[vname]
         temp_grid = copy.deepcopy(self.grid)
 
         if not self._place_boat(temp_grid, val, length):
             return False
 
-        for x, y in grids_bounding(*val, length):
-
-            if temp_grid[x][y] == EGrid.UNKNOWN:
-                temp_grid[x][y] = EGrid.BOUNDARY
-
-            elif not temp_grid[x][y].is_marked_empty():
+        for x, y in bboat.grids_bounding(*val, length):
+            if not BBExtra._assign_temp_bpart(temp_grid, x, y, EGrid.BOUNDARY):
                 return False
 
-        self._queue.append(self.grid)
+        self._queue.append((vname, self.grid))
         self.grid = temp_grid
 
         return True
@@ -243,33 +315,34 @@ class BBExtra(extra_data.ExtraDataIF):
     def pop(self):
         """Undo the last assignment."""
 
-        self.grid = self._queue.pop()
+        _, self.grid = self._queue.pop()
 
 
-# %% boat overlaps
+# %% constraints
 
-class BoatBoundaries(cnstr.Constraint):
-    """Boats must not overlap and no boat may be in the boundary
-    of another.
+class BBoatConstraint(cnstr.Constraint):
+    """Common handling of extra data.
+    This is mixed with constraints from bboat_cnstr, don't
+    define methods that will confuse the MRO."""
 
-    BBExtra implemented this check.
-    The constraint is here to support forward checking
-    which can't be done in the extra_data."""
+    def __init__(self, *args):
 
-    def __init__(self):
-
-        super().__init__()
+        super().__init__(*args)
         self.extra = None
-
-
-    def __repr__(self):
-        return 'BoatBoundaries()'
 
 
     def set_extra(self, extra):
         """Save the extra data."""
         self.extra = extra
 
+
+class BoatBoundaries(BBoatConstraint):
+    """Boats must not overlap and no boat may be in the boundary
+    of another.
+
+    BBExtra implemented this constraint check.
+    The constraint is here to support forward checking
+    which can't be done in the extra_data."""
 
     def satisfied(self, boat_dict):
         """Checked by BBExtra, return True."""
@@ -282,133 +355,45 @@ class BoatBoundaries(cnstr.Constraint):
         """Hide all values that are in the boundary or already
         occupied."""
 
-        hide_list = [(x, y) for x in range(1, SIZE_P1)
-                     for y in range(1, SIZE_P1)
+        hide_list = [(x, y) for x in range(1, bboat.SIZE_P1)
+                     for y in range(1, bboat.SIZE_P1)
                      if self.extra.grid[x][y].no_new_parts()]
 
         unassigned= [vobj for vobj in self._vobjs
                      if vobj.name not in assignments]
 
-        return empty_cells(hide_list, unassigned, variable.Variable.hide)
+        return bboat.empty_cells(hide_list, unassigned, variable.Variable.hide)
 
 
-class IncOrder(cnstr.OneOrder):
-    """Boats must be assigned in increasing order sorted by location.
-
-    Variable lists should be matching boat types, e.g. all submarines."""
-
-    def __init__(self):
-
-        super().__init__()
-        self.extra = None
-
-
-    def set_extra(self, extra):
-        """Save the extra data."""
-        self.extra = extra
-
-
-    def forward_check(self, assignments):
-        """If any of our variables are assigned, limit any unassigned
-        ones to be > that the last assigned one.
-
-        The boat order var chooser assures that sub1 is assigned
-        before sub2, etc.
-
-        The domains are generated in a sorted order, so we can exit
-        when we find one > """
-
-        last_bname = None
-        for bname in self._vnames:
-            if bname in assignments:
-                last_bname = bname
-
-        if not last_bname or last_bname == self._vnames[-1]:
-            return True
-
-        unassigned = self._vobjs[self._vnames.index(last_bname) + 1:]
-        min_loc = assignments[last_bname]
-
-        for vobj in unassigned:
-            for val in vobj.get_domain()[:]:
-                if val[:2] <= min_loc:
-
-                    if not vobj.hide(val):
-                        return False
-                else:
-                    break
-
-        return True
-
-
-# %%  row column sums
-
-class RowSum(cnstr.Constraint):
+class RowSum(BBoatConstraint, bboat_cnstr.RowSum):
     """The number of boats parts in row is <= rsum until all variables
     are boat locations then they must be equal."""
-
-    def __init__(self, row, rsum):
-
-        super().__init__()
-        self._row = row
-        self._row_sum = rsum
-        self.extra = None
-
-    def __repr__(self):
-        return f'RowSum({self._row}, {self._row_sum})'
-
-    def set_extra(self, extra):
-        """Save the extra data."""
-        self.extra = extra
 
     def satisfied(self, boat_dict):
         """Test the constraint."""
 
-        cur_sum = sum(1 for y in range(1, SIZE_P1)
-                      if self.extra.grid[self._row][y].is_boat_part())
+        cur_sum = sum(1 for part in self.extra.grid[self._row]
+                      if part.is_boat_part())
 
-        if len(boat_dict) == B_CNT:
+        if len(boat_dict) == bboat.B_CNT:
             return cur_sum == self._row_sum
 
         return cur_sum <= self._row_sum
 
+
     def preprocess(self):
-        """Preprocess row sum the constraint:
+        """Preprocess row sum the constraint: base constraint
+        does everything except update the grid."""
 
-            1. If the row_sum is zero remove any boat start location
-               that would occupy the row.
-               The constraint is then fully processed, return True.
-
-            2. Otherwise, remove domain values for any boats that
-               wont fit in the row but only along the row
-               (ie. horizontal boats)"""
+        rval = super().preprocess()
 
         if not self._row_sum:
+            for y in range(1, bboat.SIZE_P1):
+                if not self.extra.assign_grid(self._row, y, EGrid.WATER):
+                    raise cnstr.PreprocessorConflict(str(self))
 
-            for y in range(1, SIZE_P1):
-                self.extra.grid[self._row][y] = EGrid.WATER
+        return rval
 
-            row_coords = [(self._row, y) for y in range(1, SIZE_P1)]
-            if not empty_cells(row_coords, self._vobjs,
-                               variable.Variable.remove_dom_val):
-                raise cnstr.PreprocessorConflict(f'{self} is overconstrained.')
-            return True
-
-        # remove boats that wont fit in row_sum
-        for vobj in self._vobjs:
-
-            if BOAT_LENGTH[vobj.name] <= self._row_sum:
-                continue
-
-            for value in vobj.get_domain()[:]:
-                x, y, orient = value
-
-                if (x == self._row
-                        and orient == HORZ
-                        and not vobj.remove_dom_val(value)):
-                    raise cnstr.PreprocessorConflict(
-                        f'{self} is overconstrained.')
-        return False
 
     def forward_check(self, assignments):
         """If the row sum is exactly satisfied; make certain that
@@ -418,108 +403,72 @@ class RowSum(cnstr.Constraint):
 
         Return - False if any domain has been eliminated, True otherwise."""
 
-        occed_cols = [False] * SIZE
+        open_cells = []
+        cur_sum = 0
 
-        cur_sum = unk_cnt = 0
-        for y in range(1, SIZE_P1):
+        for y in range(1, bboat.SIZE_P1):
 
             cell_val = self.extra.grid[self._row][y]
 
-            if cell_val == EGrid.UNKNOWN:
-                unk_cnt += 1
+            if not cell_val:
+                open_cells += [(self._row, y)]
 
             elif cell_val.is_boat_part():
                 cur_sum += 1
-                occed_cols[y - 1] = True
 
             if cur_sum > self._row_sum:
-                return True
-
-        empty_cols = [(self._row, y)
-                      for y in range(1, SIZE+1) if not occed_cols[y]]
+                return False
 
         if cur_sum == self._row_sum:
 
-            for x, y in empty_cols:
-                self.extra.grid[x][y] = EGrid.WATER
+            for x, y in open_cells:
+                if not self.extra.assign_grid(x, y, EGrid.WATER):
+                    return False
 
             unassigned= [vobj for vobj in self._vobjs
                           if vobj.name not in assignments]
-            return empty_cells(empty_cols, unassigned, variable.Variable.hide)
+            return bboat.empty_cells(open_cells,
+                                     unassigned,
+                                     variable.Variable.hide)
 
-        if cur_sum + unk_cnt == self._row_sum:
-            for x, y in empty_cols:
-                self.extra.grid[x][y] = EGrid.UNK_PART
+        if cur_sum + len(open_cells) == self._row_sum:
+            for x, y in open_cells:
+                if not self.extra.assign_grid(x, y, EGrid.BOAT_PART):
+                    return False
 
+        # TODO scan for known boat locations
         return True
 
 
-class ColSum(cnstr.Constraint):
+class ColSum(BBoatConstraint, bboat_cnstr.ColSum):
     """The number of boats parts in clm is <= csum until all variables
     are boat locations then they must be equal."""
-
-    def __init__(self, col, csum):
-
-        super().__init__()
-        self._col = col
-        self._col_sum = csum
-        self.extra = None
-
-    def __repr__(self):
-        return f'ColSum({self._col}, {self._col_sum})'
-
-    def set_extra(self, extra):
-        """Save the extra data."""
-        self.extra = extra
 
     def satisfied(self, boat_dict):
         """Test the constraint."""
 
-        cur_sum = sum(1 for x in range(1, SIZE_P1)
+        cur_sum = sum(1 for x in range(1, bboat.SIZE_P1)
                       if self.extra.grid[x][self._col].is_boat_part())
 
-        if len(boat_dict) == B_CNT:
+        if len(boat_dict) == bboat.B_CNT:
             return cur_sum == self._col_sum
 
         return cur_sum <= self._col_sum
 
+
     def preprocess(self):
-        """Preprocess col sum the constraint:
+        """Preprocess col sum the constraint: base constraint
+        does everything except update the grid."""
 
-            1. If the col_sum is zero remove any boat start location
-               that would occupy the column.
-               The constraint is then fully processed, return True.
+        rval = super().preprocess()
 
-            2. Otherwise, remove domain values for any boats that
-               wont fit in the col but only along the col
-               (ie. vertical boats)"""
         if not self._col_sum:
+            for x in range(1, bboat.SIZE_P1):
+                if not self.extra.assign_grid(x, self._col, EGrid.WATER):
+                    raise cnstr.PreprocessorConflict(str(self))
 
-            for x in range(1, SIZE_P1):
-                self.extra.grid[x][self._col] = EGrid.WATER
+        return rval
 
-            col_coords = [(x, self._col) for x in range(1, SIZE_P1)]
-            if not empty_cells(col_coords, self._vobjs,
-                               variable.Variable.remove_dom_val):
-                raise cnstr.PreprocessorConflict(f'{self} is overconstrained.')
-            return True
-
-        # remove boats that wont fit in col_sum
-        for vobj in self._vobjs:
-
-            if BOAT_LENGTH[vobj.name] <= self._col_sum:
-                continue
-
-            for value in vobj.get_domain()[:]:
-                x, y, orient = value
-
-                if (y == self._col
-                        and orient == VERT
-                        and not vobj.remove_dom_val(value)):
-                    raise cnstr.PreprocessorConflict(
-                        f'{self} is overconstrained.')
-
-        return False
 
     def forward_check(self, assignments):
         """If the col sum is exactly satisfied; make certain that
@@ -529,80 +478,58 @@ class ColSum(cnstr.Constraint):
 
         Return - False if any domain has been eliminated, True otherwise."""
 
-        occed_rows = [False] * (SIZE_P1)
+        open_cells = []
+        cur_sum = 0
 
-        cur_sum = unk_cnt = 0
-        for x in range(1, SIZE_P1):
+        for x in range(1, bboat.SIZE_P1):
 
             cell_val = self.extra.grid[x][self._col]
 
-            if cell_val == EGrid.UNKNOWN:
-                unk_cnt += 1
+            if not cell_val:
+                open_cells += [(x, self._col)]
 
             elif cell_val.is_boat_part():
                 cur_sum += 1
-                occed_rows[x - 1] = True
 
-            if cur_sum > self._row_sum:
-                return True
+            if cur_sum > self._col_sum:
+                return False
 
-        empty_cols = [(x, self._col)
-                      for x in range(1, SIZE+1) if not occed_rows[x]]
-
-        if cur_sum == self._row_sum:
-            for x, y in empty_cols:
-                self.extra.grid[x][y] = EGrid.WATER
+        if cur_sum == self._col_sum:
+            for x, y in open_cells:
+                if not self.extra.assign_grid(x, y, EGrid.WATER):
+                    return False
 
             unassigned = [vobj for vobj in self._vobjs
                           if vobj.name not in assignments]
-            return empty_cells(empty_cols, unassigned, variable.Variable.hide)
+            return bboat.empty_cells(open_cells,
+                                     unassigned,
+                                     variable.Variable.hide)
 
-        if cur_sum + unk_cnt == self._row_sum:
-            for x, y in empty_cols:
-                self.extra.grid[x][y] = EGrid.UNK_PART
+        if cur_sum + len(open_cells) == self._row_sum:
+            for x, y in open_cells:
+                if not self.extra.assign_grid(x, y, EGrid.BOAT_PART):
+                    return False
 
+        # TODO scan for known boat locations
         return True
 
 
-# %%  partial solution
-
-
-class CellEmpty(cnstr.Constraint):
+class CellEmpty(BBoatConstraint, bboat_cnstr.CellEmpty):
     """The cell at row, col must be empty."""
-
-    def __init__(self, row, col):
-
-        super().__init__()
-        self._loc = (row, col)
-        self.extra = None
-
-    def __repr__(self):
-        return f'CellEmpty({self._loc[0]}, {self._loc[1]})'
-
-    def set_extra(self, extra):
-        """Save the extra data."""
-        self.extra = extra
-
-    def satisfied(self, boat_dict):
-        """Preprocess is overriddent, doesn't use _test_over_satis
-        and it always fully applies the constraint: no test needed."""
-        _ = boat_dict
-
-        return True
 
     def preprocess(self):
         """Remove any domain values (start locations) that
         would include (row, col). Contraint will be fully satisfied."""
 
-        if not empty_cells([self._loc], self._vobjs,
-                           variable.Variable.remove_dom_val):
-            raise cnstr.PreprocessorConflict(f'{self} is overconstrained.')
+        super().preprocess()
 
-        self.extra.grid[self._loc[0]][self._loc[1]] = EGrid.WATER
+        if not self.extra.assign_grid(*self._loc, EGrid.WATER):
+            raise cnstr.PreprocessorConflict(str(self))
+
         return True
 
 
-class BoatEnd(cnstr.Constraint):
+class BoatEnd(BBoatConstraint, bboat_cnstr.BoatEnd):
     """A boat must end at (row, col) and continue in the direction of
     cont_dir.
 
@@ -611,209 +538,76 @@ class BoatEnd(cnstr.Constraint):
 
     If not, True is returned anyway; until all boats are assigned."""
 
-    def __init__(self, row, col, cont_dir):
-
-        super().__init__()
-        self._loc = (row, col)
-        self._cont_dir = cont_dir
-        self.extra = None
-
-    def __repr__(self):
-        return f'BoatEnd({self._loc[0]}, {self._loc[1]}, {self._cont_dir})'
-
-    def set_extra(self, extra):
-        """Save the extra data."""
-        self.extra = extra
-
-    def satisfied(self, boat_dict):
-        """Test the constraint.
-
-        x, y are the upper/left corner of the boat.
-        If continue direction is UP or RIGHT we need to compare to the
-        end location of the boat (lower/right)."""
-
-        for bname, (x, y, orient) in boat_dict.items():
-
-            coord = (x, y)
-            blength = BOAT_LENGTH[bname]
-
-            if blength == 1:
-                if self._loc == coord:
-                    return False
-                continue
-
-            end = get_end_loc(x, y, orient, blength)
-
-            if self._cont_dir == DOWN:
-                good = self._loc == coord and orient == VERT
-
-            elif self._cont_dir == LEFT:
-                good = self._loc == end and orient == HORZ
-
-            elif self._cont_dir == UP:
-                good = self._loc == end and orient == VERT
-
-            elif self._cont_dir == RIGHT:
-                good = self._loc == coord and orient == HORZ
-
-            if good:
-                return True
-
-        return len(boat_dict) < B_CNT
-
     def _update_grid(self, empties):
         """Update the grid with the BoatEnd constraint info.
         Put water in the bounding cells and an UNKnown PART
         in the CONTinue DIRection."""
 
         for x, y in empties:
-            self.extra.grid[x][y] = EGrid.WATER
+            if not self.extra.assign_grid(x, y, EGrid.WATER):
+                raise cnstr.PreprocessorConflict(str(self))
 
-        # TODO don't overwrite a known boat part!!
-
+        cont_pos = bboat.cont_pos(self._loc, self._cont_dir)
+        cx, cy = cont_pos
         x, y = self._loc
-        if self._cont_dir == UP:
-            self.extra.grid[x][y] = EGrid.END_BOT
-            self.extra.grid[x - 1][y] = EGrid.UNK_PART
+        bpart = BPART_FROM_DIRECT[self._cont_dir]
 
-        elif self._cont_dir == DOWN:
-            self.extra.grid[x][y] = EGrid.END_TOP
-            self.extra.grid[x + 1][y] = EGrid.UNK_PART
+        if not self.extra.assign_grid(x, y, bpart):
+            raise cnstr.PreprocessorConflict(str(self))
 
-        elif self._cont_dir == RIGHT:
-            self.extra.grid[x][y] = EGrid.END_LFT
-            self.extra.grid[x][y + 1] = EGrid.UNK_PART
+        if not self.extra.assign_grid(cx, cy, EGrid.BOAT_PART):
+            raise cnstr.PreprocessorConflict(str(self))
 
-        elif self._cont_dir == LEFT:
-            self.extra.grid[x][y] = EGrid.END_RGT
-            self.extra.grid[x][y - 1] = EGrid.UNK_PART
 
     def preprocess(self):
-        """Given boat end and direction, we know which cells opposite of
-        continue direction and sides (plus +1 in cont_dir) can be
-        removed from the domains of all variables.
+        """Update the grid and let the base constraint update
+        the variable domains."""
 
-        Remove (row, col, VERT) from the domain of submarines,
-        they can't be put at (row, col).
+        super().preprocess()
 
-        For boats longer than 2, remove any values that put a middle
-        part of the boat at (row, col)."""
-
-        empties = grids_bound_end(*self._loc, self._cont_dir)
-        if not empty_cells(empties, self._vobjs,
-                           variable.Variable.remove_dom_val):
-            raise cnstr.PreprocessorConflict(f'{self} is overconstrained.')
-
+        empties = bboat.grids_bound_end(*self._loc, self._cont_dir)
         self._update_grid(empties)
-
-        # TODO special case of destroyers when end is one away from edge
-
-        for bobj in self._vobjs:
-            length = BOAT_LENGTH[bobj.name]
-
-            if length == 1:
-                loc = (*self._loc, VERT)
-                if loc in bobj.get_domain():
-                    if not bobj.remove_dom_val(loc):
-                        raise cnstr.PreprocessorConflict(
-                            f'{self} is overconstrained.')
-                continue
-
-            if length == 2:
-                continue
-
-            for value in bobj.get_domain()[:]:
-                x, y, orient = value
-
-                if self._loc in grids_occed(x, y, orient, length)[1:-1]:
-                    if not bobj.remove_dom_val(value):
-                        raise cnstr.PreprocessorConflict(
-                            f'{self} is overconstrained.')
 
         return False
 
-    # TODO is a forward check for BoatEnd useful?
-    # once constraint is met, remove boat end from other domains?
+    # TODO write BoatEnd forward check
+    # check for newly known destroyer locations
+    # if a boat end, is not on 'edge' of water cells  (see grid bounds ends)
 
 
-class BoatMid(cnstr.Constraint):
+class BoatMid(BBoatConstraint, bboat_cnstr.BoatMid):
     """A boat mid part must be at (row, col).
 
     This constraint prohibits submarines and destroyers from
-    using (row, col).
+    using any cell in (row, col) and it's neighbors.
 
     If not, True is returned anyway; until all boats are assigned."""
 
-    def __init__(self, row, col):
-        super().__init__()
-        self._loc = (row, col)
-        self.extra = None
-
-    def __repr__(self):
-        return f'BoatMid({self._loc[0]}, {self._loc[1]})'
-
-    def set_extra(self, extra):
-        """Save the extra data."""
-        self.extra = extra
-
-    def satisfied(self, boat_dict):
-        """Test the constraint."""
-
-        for bname, (x, y, orient) in boat_dict.items():
-            length = BOAT_LENGTH[bname]
-
-            if length == 1:
-                if self._loc == (x, y):
-                    return False
-                continue
-
-            if length == 2:
-                if self._loc in grids_occed(x, y, orient, length):
-                    return False
-                continue
-
-            mids = grids_occed(x, y, orient, length)[1:-1]
-            if self._loc in mids:
-                return True
-
-        return len(boat_dict) < B_CNT
-
-    def _update_grid(self, diags):
-        """Update the grid with the BoatMid constraint info.
-        Put water in the diag cells and MID part."""
-
-        for x, y in diags:
-            self.extra.grid[x][y] = EGrid.WATER
-
-        x, y = self._loc
-        self.extra.grid[x][y] = EGrid.MID
-
     def preprocess(self):
-        """Remove the diagonals from the domains of all the
-        variables. Constraint is never fully applied here."""
+        """Use the base constraint to update the variables
+        then update the grid."""
 
-        # TODO a boat mid with a row,col sum of 3 is a
-        # cruiser (if know which, e.g. edge or 0 row/col)
+        super().preprocess()
 
-        # TODO a boat mid one cell away from a boat end is
-        # the battleship
+        # TODO should we be recording which type of empties
+        # e.g. if only diagnols it can be refined, but if
+        # was on an edge and 5 values -- can't be refined
 
-        x, y = self._loc
-        diags = [(x-1, y-1), (x-1, y+1), (x+1, y-1), (x+1, y+1)]
+        for x, y in bboat.grids_bound_mid(*self._loc):
+            if (0 < x < bboat.SIZE_P1 and 0 < y < bboat.SIZE_P1
+                    and not self.extra.assign_grid(x, y, EGrid.WATER)):
+                raise cnstr.PreprocessorConflict(str(self))
 
-        if not empty_cells(diags, self._vobjs,
-                           variable.Variable.remove_dom_val):
-            raise cnstr.PreprocessorConflict(f'{self} is overconstrained.')
-
-        self._update_grid(diags)
+        if not self.extra.assign_grid(*self._loc, EGrid.MID):
+            raise cnstr.PreprocessorConflict(str(self))
 
         return False
 
     # TODO write BoatMid.forward_check
-    # place UNK_PART s when we know where they should go
+    # place BOAT_PART s when we know where they should go
 
 
-class BoatSub(cnstr.Constraint):
+class BoatSub(BBoatConstraint, bboat_cnstr.BoatSub):
     """A submarine must be at (row, col).
 
     For any boat longer than a submarine, if it occupies (row, col)
@@ -822,251 +616,104 @@ class BoatSub(cnstr.Constraint):
     If all 4 subs are assigned but none at (row, col) return False,
     otherwise True."""
 
-    def __init__(self, row, col):
-
-        super().__init__()
-        self._loc = (row, col)
-        self.extra = None
-
-    def __repr__(self):
-        return f'BoatSub({self._loc[0]}, {self._loc[1]})'
-
-    def set_extra(self, extra):
-        """Save the extra data."""
-        self.extra = extra
-
-    def satisfied(self, boat_dict):
-        """Test the constraint."""
-
-        sub_cnt = 0
-
-        for bname, (x, y, orient) in boat_dict.items():
-            length = BOAT_LENGTH[bname]
-
-            if length > 1:
-                if self._loc in grids_occed(x, y, orient, length):
-                    return False
-                continue
-
-            sub_cnt += 1
-            if self._loc == (x, y):
-                return True
-
-        return sub_cnt < 4
-
-    def _update_grid(self, bounds):
-        """Update the grid with the BoatSub constraint info.
-        Put water in the bounding cells and place the sub."""
-
-        for x, y in bounds:
-            self.extra.grid[x][y] = EGrid.WATER
-
-        x, y = self._loc
-        self.extra.grid[x][y] = EGrid.ROUND
-
     def preprocess(self):
-        """Remove (row, col) and bounding cells from all boats longer
-        than 1."""
+        """Use the base constraint to update the boat variable
+        domains then update grid."""
 
-        empties = grids_bounding(*self._loc, VERT, 1)
-        self._update_grid(empties)
+        fully = super().preprocess()
 
-        empties |= {self._loc}
-        for bobj in self._vobjs:
+        for x, y in bboat.grid_neighs(*self._loc):
+            if not self.extra.assign_grid(x, y, EGrid.WATER):
+                raise cnstr.PreprocessorConflict(str(self))
 
-            length = BOAT_LENGTH[bobj.name]
+        if not self.extra.assign_grid(*self._loc, EGrid.ROUND):
+            raise cnstr.PreprocessorConflict(str(self))
 
-            if length == 1:
-                continue
-
-            if not empty_cells(empties, [bobj],
-                               variable.Variable.remove_dom_val):
-                raise cnstr.PreprocessorConflict(f'{self} is overconstrained.')
-
-        return False
+        return fully
 
 
-# %%  boat order var chooser
+# %%  load and define puzzles
 
-class BoatOrder(var_chooser.VarChooser):
-    """Choose the variable assignment order based on boat length.
-    do longest boats first."""
-
-    @staticmethod
-    def choose(vobjs, prob_spec, assignments):
-        """var chooser"""
-
-        _ = prob_spec, assignments
-
-        return max(vobjs, key = lambda var : BOAT_LENGTH[var.name])
-
-
-# %% problem statement  (BOATS)
-
-def add_basic(boatprob):
-    """Add the basic constraints common to all battle boats problems."""
-
-    extra = BBExtra()
-    boatprob.extra = extra
-    boatprob.solver = solver.NonRecBacktracking()
-    boatprob.var_chooser = BoatOrder()
-    boatprob.forward_check = True
-
-    # add boat location variables and domains
-    for bname, length in BOAT_LENGTH.items():
-        boatprob.add_variable(bname, pos_locs(length))
-
-    # reduces solutions from 2! * 3! * 4! = 288 to 1
-    boatprob.add_constraint(IncOrder(), ['cruiser1', 'cruiser2'])
-    boatprob.add_constraint(IncOrder(), ['destroyer1', 'destroyer2', 'destroyer3'])
-    boatprob.add_constraint(IncOrder(), ['sub1', 'sub2', 'sub3', 'sub4'])
-
-    #  boats should not overlap or touch
-    boatprob.add_constraint(BoatBoundaries(), BOATS)
-
-    return extra
+# these refer to the contraints in this file not bboat_cnstr
+BOAT_CNSTR = {bboat.ROWSUM: RowSum,
+              bboat.COLSUM: ColSum,
+              bboat.EMPTYCELL: CellEmpty,
+              bboat.SUMBARINE: BoatSub,
+              bboat.BOATTOP: BoatEnd,
+              bboat.BOATBOTTOM: BoatEnd,
+              bboat.BOATLEFT: BoatEnd,
+              bboat.BOATRIGHT: BoatEnd,
+              bboat.BOATMID: BoatMid
+              }
 
 
-def build_one(boatprob):
-    """Battleship/Commodore problem from Games Magazine September 2019."""
+def build_puzzle(filename):
+    """Return a function that can build boat a problem
+    based on an input file."""
 
-    boatprob.extra_data = add_basic(boatprob)
+    pairs = bboat.read_puzzle(bboat.PUZ_PATH + filename)
+    if not pairs:
+        return None
 
-    # row/col sums
-    rsums = [3, 1, 2, 1, 1, 2, 1, 1, 4, 4]
-    for row, rsum in enumerate(rsums):
-        boatprob.add_constraint(RowSum(row + 1, rsum), BOATS)
+    cons = bboat_cnstr.build_cons(pairs, BOAT_CNSTR)
 
-    csums = [5, 0, 2, 1, 2, 0, 2, 4, 1, 3]
-    for col, csum in enumerate(csums):
-        boatprob.add_constraint(ColSum(col + 1, csum), BOATS)
+    def build_func(boatprob):
+        """place holder"""
 
-    # partial solutions:   boat start/end, middle, sub, or empty loc
-    boatprob.add_constraint(CellEmpty(1, 10), BOATS)
+        bboat_cnstr.add_basic(boatprob)
+        boatprob.extra_data = BBExtra()
+        for con in cons:
+            boatprob.add_constraint(con, bboat.BOATS)
+            con.set_extra(boatprob.extra_data)
+        bboat_cnstr.add_final(boatprob)
 
-    boatprob.add_constraint(BoatEnd(2, 1, UP), BOATS)
-    boatprob.add_constraint(BoatEnd(9, 7, DOWN), BOATS)
+    build_func.__name__ = f'build_puzzle("{filename}")'
+    build_func.__doc__ = filename + ':  \n' \
+            + '\n'.join(str(c)+ '=' + str(v) for c, v in pairs)
 
-    for con in boatprob._spec.constraints:
-        con.set_extra(boatprob.extra_data)
-
-
-def build_two(boatprob):
-    """Battleship/Seaman problem from Games Magazine September 2019."""
-
-    extra = add_basic(boatprob)
-    cons = read_puzzle(PUZ_PATH + "puzzles/seaman_sept2019.txt")
-
-    for con in cons:
-        boatprob.add_constraint(con, BOATS)
-        con.set_extra(extra)
+    return build_func
 
 
-def build_three(boatprob):
-    """Battleship/Admiral problem from Games Magazine September 2019."""
+def build_all_puzzles():
+    """Create a list of build functions for the files in
+    the puzzle directory."""
 
-    extra = add_basic(boatprob)
-    cons = read_puzzle(PUZ_PATH + "puzzles/admiral_sept2019.txt")
+    build_funcs = []
+    files = sorted(os.listdir(bboat.PUZ_PATH))
 
-    for con in cons:
-        boatprob.add_constraint(con, BOATS)
-        con.set_extra(extra)
+    for filename in files:
+        func = build_puzzle(filename)
+        if func:
+            build_funcs += [func]
 
-
-def build_four(boatprob):
-    """Battleship/Petty Officer problem from Games Magazine September 2019."""
-
-    extra = add_basic(boatprob)
-    cons = read_puzzle(PUZ_PATH + "puzzles/p_officer_sept2019.txt")
-
-    for con in cons:
-        boatprob.add_constraint(con, BOATS)
-        con.set_extra(extra)
-
-
-def build_five(boatprob):
-    """Randomly generated build."""
-
-    extra = add_basic(boatprob)
-    cons = read_puzzle(PUZ_PATH + "puzzles/test.txt")
-
-    for con in cons:
-        boatprob.add_constraint(con, BOATS)
-        con.set_extra(extra)
-
-
-# %%  print the grid
-
-def print_grid(solution, _=None):
-    """print the solution grid"""
-
-    grid = [[' . '] * SIZE for _ in range(SIZE)]
-    for bname, location in solution.items():
-        for x, y in grids_occed(*location, BOAT_LENGTH[bname]):
-            grid[x - 1][y - 1] = ' x '
-
-    print('    1  2  3  4  5  6  7  8  9 10')
-    for ridx, row in enumerate(grid):
-        print(f'{ridx+1:2}', ''.join(row))
-
-    print()
-    cache_info()
-
-
-# %%  test constraints against correct answer
-
-def test_answer(boatprob, correct):
-    """Test the correct answer against the constraints."""
-
-    boatprob.set_var_chooser(BoatOrder)
-    boatprob._spec.prepare_variables()
-
-    good = True
-    for con in boatprob._spec.constraints:
-
-        con_assign = {vname : correct[vname] for vname in con.get_vnames()
-                        if vname in correct}
-
-        if not con.satisfied(con_assign):
-            print('False', con, con.get_vnames())
-            good = False
-
-    if good:
-        print('\nAll good.')
-
-def test_wrapper():
-    """Get the data from last UI generated puzzle and answer."""
-
-    boatprob = problem.Problem()
-    build_five(boatprob)
-
-    print('Reading answer:')
-    with open(PUZ_PATH + "puzzles/answer.txt", encoding='UTF-8') as file:
-        answer = json.load(file)
-    print_grid(answer)
-    print()
-
-    test_answer(boatprob, answer)
+    return build_funcs
 
 
 # %%   main
 
-builds = [build_one, build_two, build_three, build_four, build_five]
-
+builds = build_all_puzzles()
 
 if __name__ == '__main__':
 
-    experimenter.do_stuff(builds, print_grid)
+    experimenter.do_stuff(builds, bboat.print_grid)
 
 
 if __name__ == '__test_example__':
 
-    # for build in builds[:2]:
-    #     bprob = problem.Problem()
-    #     build(bprob)
-    #     bprob.var_chooser = BoatOrder
-    #     sol = bprob.get_solution()
-    #     print_grid(sol)
+    # run_slow is defined in the global dict passed to runpy.run_path
+    # access through globals so we don't get a syntax error
 
-    skipped = True
-    reason = 'Has errors and slow.'
+    if not globals()['run_slow']:
+        # pick a small representative set
+        builds = [build_puzzle("admiral_sept2019.txt"),
+                  build_puzzle("commodore_sept2019.txt"),
+                  build_puzzle("seaman_sept2019.txt"),
+                  build_puzzle("test.txt"),
+                  build_puzzle("test_prep.txt")]
+
+    for build in builds:
+        print(f'\nSolving build {build.__name__}:\n', build.__doc__)
+        bprob = problem.Problem()
+        build(bprob)
+        sol = bprob.get_solution()
+        bboat.print_grid(sol)

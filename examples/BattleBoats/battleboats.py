@@ -51,13 +51,20 @@ RIGHT = 1
 DOWN = 2
 LEFT = 3
 
-CONT_POS =  ((-1, 0),
+CONT_INCS = ((-1, 0),
              (0, 1),
              (1, 0),
              (0, -1))
 
 
 # %%  grid and boat helper functions
+
+def cont_pos(loc, direction):
+    """Return the grid loc for the continue position of a
+    boat end at loc in direction."""
+
+    return tuple(a + b for a, b in zip(loc,
+                                       CONT_INCS[direction]))
 
 
 def grid_diags(x, y):
@@ -398,7 +405,8 @@ def print_grid(solution, _=None):
     for ridx, row in enumerate(grid):
         print(f'{ridx+1:2}', ''.join(row))
     print()
-
+    print(solution)
+    print()
 
 # %%   main
 

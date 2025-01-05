@@ -10,16 +10,18 @@ domains are locations that boats can be placed as tuples: (x, y, orientation)
 
 Constraints defined:
         BoatBoundaries
-        RowSum
-        ColSum
+        IncOrder - restrict boats to increasing order
+                   removes duplicates caused by 2 cruisers,
+                   3 destroyers and 4 subs
+        RowSum - puzzle specifies row sums
+        ColSum - puzzles specifies column sumes
         CellEmpty - puzzle specifies an empty cell
         BoatEnd - puzzle specifies a boat end part
                   with opening up, down, left, right
         BoatMid - puzzle specifies a boat mid part,
-                  boat may extend in any direction
+                  boat may extend in either direction
         BoatSub - puzzle specifies a submarine (boat length of 1)
 
-lru cache is used for common analysis functions.
 
 Created on Fri May  5 03:40:16 2023
 @author: Ann"""
@@ -33,6 +35,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__),
                                                 '../..')))
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 
+import battleboats as bboat
 from csp_solver import constraint as cnstr
 from csp_solver import experimenter
 from csp_solver import problem
@@ -40,7 +43,6 @@ from csp_solver import solver
 from csp_solver import var_chooser
 from csp_solver import variable
 
-import battleboats as bboat
 
 
 # %% constraints
@@ -234,7 +236,7 @@ class RowSum(cnstr.Constraint):
 
         Return - False if any domain has been eliminated, True otherwise."""
 
-        occed_cols = [False] * (bboat.SIZE_P1)
+        occed_cols = [False] * bboat.SIZE_P1
         cur_sum = 0
 
         for bname, (x, y, orient) in assignments.items():
@@ -255,7 +257,7 @@ class RowSum(cnstr.Constraint):
             return True
 
         empty_cols = [(self._row, y)
-                      for y in range(1, bboat.SIZE + 1) if not occed_cols[y]]
+                      for y in range(1, bboat.SIZE_P1) if not occed_cols[y]]
         unassigned= [vobj for vobj in self._vobjs
                       if vobj.name not in assignments]
 
@@ -363,7 +365,7 @@ class ColSum(cnstr.Constraint):
             return True
 
         empty_rows = [(x, self._col)
-                      for x in range(1, bboat.SIZE + 1) if not occed_rows[x]]
+                      for x in range(1, bboat.SIZE_P1) if not occed_rows[x]]
         unassigned= [vobj for vobj in self._vobjs
                       if vobj.name not in assignments]
 
@@ -514,7 +516,8 @@ class BoatEnd(cnstr.Constraint):
 
         destroyer_loc = self._check_destroyer()
         fully = False
-        cont_pos = bboat.CONT_POS[self._cont_dir]
+        cont_pos = bboat.cont_pos(self._loc, self._cont_dir)
+
         neighs = bboat.grid_neighs(*self._loc)
 
         for bobj in self._vobjs:
@@ -618,7 +621,7 @@ class BoatMid(cnstr.Constraint):
 
             if length == 1:
                 if not bboat.remove_starts(bobj, neighs + [self._loc]):
-                   raise cnstr.PreprocessorConflict(str(self))
+                    raise cnstr.PreprocessorConflict(str(self))
 
             elif length == 2:
                 if not bboat.remove_starts_ends(bobj, neighs + [self._loc]):
@@ -762,7 +765,9 @@ def add_final(boatprob):
     boatprob.add_constraint(IncOrder(), ['sub1', 'sub2', 'sub3', 'sub4'])
 
 
-BOAT_CNSTR = {bboat.EMPTYCELL : CellEmpty,
+BOAT_CNSTR = {bboat.ROWSUM: RowSum,
+              bboat.COLSUM: ColSum,
+              bboat.EMPTYCELL : CellEmpty,
               bboat.SUMBARINE : BoatSub,
               bboat.BOATTOP : BoatEnd,
               bboat.BOATBOTTOM : BoatEnd,
@@ -772,7 +777,7 @@ BOAT_CNSTR = {bboat.EMPTYCELL : CellEmpty,
               }
 
 
-def build_cons(pairs):
+def build_cons(pairs, constraints):
     """Convert the pairs of values from the json problem statement
     into constraints and variable assignments. There may be
     duplcate keys, the json reader returns the pairs."""
@@ -783,15 +788,15 @@ def build_cons(pairs):
 
         if name == bboat.ROWSUM:
             for row, rsum in enumerate(value):
-                cons += [RowSum(row + 1, rsum)]
+                cons += [constraints[name](row + 1, rsum)]
             continue
 
         if name == bboat.COLSUM:
             for col, csum in enumerate(value):
-                cons += [ColSum(col + 1, csum)]
+                cons += [constraints[name](col + 1, csum)]
             continue
 
-        con_class = BOAT_CNSTR[name]
+        con_class = constraints[name]
         row, col = value
 
         if issubclass(con_class, BoatEnd):
@@ -810,7 +815,7 @@ def build_puzzle(filename):
     if not pairs:
         return None
 
-    cons = build_cons(pairs)
+    cons = build_cons(pairs, BOAT_CNSTR)
 
     def build_func(boatprob):
         """place holder"""
@@ -827,7 +832,7 @@ def build_puzzle(filename):
     return build_func
 
 
-def build_puzzles():
+def build_all_puzzles():
     """Create a list of build functions for the files in
     the puzzle directory."""
 
@@ -844,7 +849,7 @@ def build_puzzles():
 
 # %%   main
 
-builds = build_puzzles()
+builds = build_all_puzzles()
 
 if __name__ == '__main__':
 
@@ -853,7 +858,7 @@ if __name__ == '__main__':
 
 if __name__ == '__test_example__':
 
-    # run_slow is defined the global dict passed to runpy.run_path
+    # run_slow is defined in the global dict passed to runpy.run_path
     # access through globals so we don't get a syntax error
 
     # if not run_slow:
@@ -869,7 +874,6 @@ if __name__ == '__test_example__':
         print(f'\nSolving build {build.__name__}:\n', build.__doc__)
         bprob = problem.Problem()
         build(bprob)
-        bprob.var_chooser = BoatOrder
         sol = bprob.get_solution()
         bboat.print_grid(sol)
 
@@ -878,10 +882,9 @@ if __name__ == '__test_example__':
 
 # bprob = problem.Problem()
 # build(bprob)
-# bprob.var_chooser = BoatOrder
 
 # # bprob._spec.prepare_variables()
 # # bprob.print_domains()
 
 # sol = bprob.get_all_solutions()
-# # bboat.print_grid(sol)
+# # bboat.print_grid(sol[0])
