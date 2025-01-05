@@ -141,8 +141,8 @@ def generate_puzzle(stop_at=81):
                     print(count % 10, end='', flush=True)
                     squares.remove(squ)
                     break
-                else:
-                    puzzle[squ] = val
+
+                puzzle[squ] = val
 
             else:
                 # can't remove anymore while maintianing a unique solution
@@ -160,14 +160,14 @@ def generate_puzzle(stop_at=81):
 
 if __name__ == '__main__':
 
-    puzzle = generate_puzzle()
-    display_grid(puzzle)
+    sud_puzzle = generate_puzzle()
+    display_grid(sud_puzzle)
 
 
 if __name__ == '__test_example__':
 
     # run just enough to exercise most of the code
     print('\n')
-    puzzle = generate_puzzle(15)
-    print(puzzle)
-    display_grid(puzzle)
+    sud_puzzle = generate_puzzle(15)
+    print(sud_puzzle)
+    display_grid(sud_puzzle)

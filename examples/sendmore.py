@@ -46,11 +46,12 @@ def test_add(vorder, arg_dict):
 
     places = len(vorder) // 3
     val = [0] * 3
-    for n in range(3):
+    for pos in range(3):
 
-        digits = [arg_dict[c] for c in reversed(vorder[n*places:(n+1)*places])]
+        digits = [arg_dict[c]
+                  for c in reversed(vorder[pos * places:(pos + 1) * places])]
 
-        val[n] = sum(pwr * dig
+        val[pos] = sum(pwr * dig
                      for pwr, dig in zip(POWERS, digits))
 
     return (val[0] + val[1]) % POWERS[places] == val[2]
@@ -146,5 +147,5 @@ if __name__ == '__test_example__':
         print('\nSolving build', build.__name__)
         prob = csp.Problem()
         build(prob)
-        sol = prob.get_solution()
-        show(sol)
+        sm_sol = prob.get_solution()
+        show(sm_sol)

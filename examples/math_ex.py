@@ -20,6 +20,7 @@ from csp_solver import problem
 
 
 def solve(slvr):
+    """Create a solve a simple math problem."""
 
     prob = problem.Problem(slvr)
 
@@ -39,7 +40,7 @@ def solve(slvr):
         print(prob.get_all_solutions())
 
 
-if __name__ == '__main__' or __name__ == '__test_example__':
+if __name__ in ('__main__', '__test_example__'):
 
     print('\n')
     for s in [solver.Backtracking(forward_check=True),

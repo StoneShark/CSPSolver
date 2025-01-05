@@ -29,6 +29,7 @@ COLS = '12345'
 # %%  problem definition
 
 def build(prob):
+    """Example Kakuros problem as CSP."""
 
     sums = [(3, 'B2', 'C2'),
             (10, 'B3', 'C3', 'D3', 'E3'),
@@ -51,6 +52,7 @@ def build(prob):
 
 
 def show_solution(solution, _=None):
+    """Print the solution as a grid"""
 
     for row in ROWS:
         for col in COLS:
@@ -67,7 +69,7 @@ if __name__ == '__main__':
 if __name__ == '__test_example__':
 
     print('\n')
-    prob = csp.Problem()
-    build(prob)
-    sol = prob.get_solution()
+    kprob = csp.Problem()
+    build(kprob)
+    sol = kprob.get_solution()
     show_solution(sol)

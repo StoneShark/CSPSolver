@@ -47,6 +47,7 @@ UNITLIST = ROW_UNITS + COL_UNITS + BOX_UNITS
 # %%  problem definition
 
 def build(eproblem):
+    """Build an example sudoku puzzle as a CSP"""
 
     eproblem.var_chooser = var_chooser.MinDomain
 
@@ -78,6 +79,7 @@ def build(eproblem):
 
 
 def show_solution(solution, _=None):
+    """Print the solution as a grid"""
 
     print()
     for row in ROWS:

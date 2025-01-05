@@ -176,7 +176,8 @@ def build(build_nbr, prob):
 
     # each isle must have cnt number of bridges in/out
     for isle, cnt in isle_cnts.items():
-        neighs = [bdg for bdg in nodes if bdg[:2] == isle or bdg[2:] == isle]
+        neighs = [bdg for bdg in nodes
+                  if isle in [bdg[:2], bdg[2:]]]
         prob.add_constraint(cnstr.ExactSum(cnt), neighs)
 
     # bridges cannot cross, relies on node point order (see above)
@@ -196,6 +197,8 @@ def build(build_nbr, prob):
 
 
 def print_sol(sol, build_nbr):
+    """Print the solution by creating the grid and
+    drawing the bridge paths."""
 
     pgrid = [row[:] for row in grids[build_nbr]]
 
@@ -244,5 +247,5 @@ if __name__ == '__test_example__':
         print(f'\nSolving grid {bnbr}')
         bprob = csp.Problem()
         build(bnbr, bprob)
-        sol = bprob.get_solution()
-        print_sol(sol, bnbr)
+        esol = bprob.get_solution()
+        print_sol(esol, bnbr)

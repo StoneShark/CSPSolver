@@ -451,6 +451,7 @@ class NonRecBacktracking(Solver):
 
             while True:
 
+                # might pop the queue and assign a new val to prev asign'ed var
                 rval = self._choose_new_assign(var_name, values)
                 if not rval:
                     return

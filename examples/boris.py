@@ -36,13 +36,14 @@ def build(prob):
     prob.add_constraint(cnstr.LessThan(), 'ED')
 
 
-def show(sol, _=None):
+def show(solution, _=None):
+    """Show the solution"""
 
-    print(f"A = {sol['A']}")
-    print(f"B = {sol['B']}")
-    print(f"C = {sol['C']}")
-    print(f"D = {sol['D']}")
-    print(f"E = {sol['E']}")
+    print(f"A = {solution['A']}")
+    print(f"B = {solution['B']}")
+    print(f"C = {solution['C']}")
+    print(f"D = {solution['D']}")
+    print(f"E = {solution['E']}")
 
 
 if __name__ == '__main__':

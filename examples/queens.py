@@ -36,10 +36,10 @@ def build(queen_prob):
     # still sometimes doesn't
     # queen_prob.add_constraint(cnstr.AllDifferent(), queens)
 
-    for qidx, q1 in enumerate(queens):
-        for q2 in queens[qidx + 1:]:
-            queen_prob.add_constraint(ft.partial(no_capture, q1, q2),
-                                      (q1, q2))  # these are ranks
+    for qidx, queen1 in enumerate(queens):
+        for queen2 in queens[qidx + 1:]:
+            queen_prob.add_constraint(ft.partial(no_capture, queen1, queen2),
+                                      (queen1, queen2))  # these are ranks
 
 
 def show(solution, _=None):
