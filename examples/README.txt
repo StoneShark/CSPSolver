@@ -10,9 +10,8 @@ BattleBoats      solutions to the solitary battleship puzzles from
                  Games magazine. Constraints specific to the puzzle
                  are created by extending csp_solver.constraint.Constraint
                  into 8 new constraint types. A unique variable choosing
-                 order is used. Several representations are provided.
-                 Some are very bad--it is an NP-complete problem.
-                 Example puzzles are included.
+                 order is used. Three representations are provided.
+                 Extra_data and UniqueSets are demonstrated in bboat_extra.
 
 boris            an example from the web that was used to explain arc 
                  consistency.

@@ -31,9 +31,10 @@ class TestGeneral:
 
         assert cnstr.OneOrder.NAT_NBR_DOMAIN == False
         assert cnstr.BoolBinOpConstraint.NAT_NBR_DOMAIN == False
+        assert cnstr.UniqueSolutionsIF.NAT_NBR_DOMAIN == False
 
         # Fail if new constraints need to be added to this test
-        assert len(cnstr.Constraint.__subclasses__()) == 13
+        assert len(cnstr.Constraint.__subclasses__()) == 14
 
         assert cnstr.Nand.NAT_NBR_DOMAIN == False
         assert cnstr.Or.NAT_NBR_DOMAIN == False
@@ -81,8 +82,11 @@ class TestGeneral:
         assert cnstr.SetConstraint.ARC_CONSIST_CHECK_OK == \
             ArcConCheck.CHECK_INST
 
+        assert cnstr.UniqueSolutionsIF.ARC_CONSIST_CHECK_OK == \
+            ArcConCheck.NEVER
+
         # Fail if new constraints need to be added to this test
-        assert len(cnstr.Constraint.__subclasses__()) == 13
+        assert len(cnstr.Constraint.__subclasses__()) == 14
 
         assert cnstr.Nand.ARC_CONSIST_CHECK_OK == ArcConCheck.ALWAYS
         assert cnstr.Or.ARC_CONSIST_CHECK_OK == ArcConCheck.ALWAYS

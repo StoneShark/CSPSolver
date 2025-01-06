@@ -745,7 +745,7 @@ def build_puzzle(filename):
         for con in cons:
             boatprob.add_constraint(con, bboat.BOATS)
             con.set_extra(boatprob.extra_data)
-        bboat_cnstr.add_final(boatprob)
+        bboat_cnstr.add_final(boatprob, uset_cnstr=True)
 
     build_func.__name__ = f'build_puzzle("{filename}")'
     build_func.__doc__ = doc_str

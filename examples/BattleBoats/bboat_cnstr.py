@@ -751,19 +751,25 @@ def add_basic(boatprob):
     boatprob.add_constraint(BoatBoundaries(), bboat.BOATS)
 
 
-def add_final(boatprob):
-    """Use the unique solution constraint to limit solutions
-    so that the same kinds of boats can be assigned in any
-    order.
+def add_final(boatprob, uset_cnstr=False):
+    """IncOne constraints need to be added last so that any variables
+    whose domains have been reduced to one value can be excluded by
+    the preprocessor.
+    Reduces solutions from 2! * 3! * 4! = 288 to 1
 
-    This doesn't actually need to be in a seperate funciton."""
+    uset_cnstr chooses which method to use for unique solutions.
+    IncOrder has a forward check that results in faster solves."""
 
-    # reduces solutions from 2! * 3! * 4! = 288 to 1
     var_sets = [['cruiser1', 'cruiser2'],
                 ['destroyer1', 'destroyer2', 'destroyer3'],
                 ['sub1', 'sub2', 'sub3', 'sub4']]
-    boatprob.set_unique_sol_constraint(cnstr.UniqueSets(var_sets),
-                                       bboat.BOATS)
+
+    if uset_cnstr:
+        boatprob.set_unique_sol_constraint(cnstr.UniqueSets(var_sets),
+                                           bboat.BOATS)
+    else:
+        for vset in var_sets:
+            boatprob.add_constraint(IncOrder(), vset)
 
 
 BOAT_CNSTR = {bboat.ROWSUM: RowSum,
