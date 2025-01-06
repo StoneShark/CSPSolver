@@ -164,9 +164,7 @@ class BBExtra(extra_data.ExtraDataIF):
     and some data that we can infer, e.g. there's boat part but we don't
     know what type.
 
-    assigned - has a boat been placed here (may as a temporary assignment).
-    If False, the part was assigned by a clue (preprocessor) or
-    forward_check.
+    row_sums, col_sums - row and column sums lists
 
     queue - a queue of tuples (vname, grid) where vname is the last variable
     that was assigned to make the grid."""
@@ -175,11 +173,11 @@ class BBExtra(extra_data.ExtraDataIF):
 
         self.grid =  [[EGrid.UNKNOWN] * bboat.SIZE_P1
                       for _ in range(bboat.SIZE_P1)]
+        self.row_sums = None
+        self.col_sums = None
 
         self._queue = collections.deque()
 
-        # TODO should this contain the row/col sums to support
-        # forward checks for END and MID?
 
 
     def __str__(self):
@@ -437,6 +435,15 @@ class RowSum(BBoatConstraint, bboat_cnstr.RowSum):
                     return False
 
         # TODO scan for known boat locations
+        blen = 0
+        for y in range(1, bboat.SIZE_P1):
+            cell_val = self.extra.grid[self._row][y]
+            if EGrid.BOAT_PART in cell_val and EGrid.ASSIGNED not in cell_val:
+                blen += 1
+            elif blen > 1:
+                # we know there a boat of len blen there
+                print('found a known boat')
+
         return True
 
 
@@ -570,9 +577,63 @@ class BoatEnd(BBoatConstraint, bboat_cnstr.BoatEnd):
 
         return False
 
-    # TODO write BoatEnd forward check
-    # check for newly known destroyer locations
-    # if a boat end, is not on 'edge' of water cells  (see grid bounds ends)
+
+    def _destroyer_end(self):
+        """Check for a destroyer at _loc based on water being two
+        away from open end.
+        There is no boat assigned at _loc.
+        Return False if a variable is overconstrained,
+        otherwise, return True."""
+
+        x, y = self._loc
+        dx, dy = bboat.CONT_INCS(self._cont_dir)
+
+        if (self._cont_dir in (bboat.LEFT, bboat.RIGHT)
+                and EGrid.WATER in self.extra.grid[x + 2 * dx][y]):
+            destroyer_loc = (x, y, bboat.HORZ)
+
+        elif (self._cont_dir in (bboat.UP, bboat.DOWN)
+                  and EGrid.WATER in self.extra.grid[x][y + 2 * dy]):
+            destroyer_loc = (x, y, bboat.VERT)
+
+        else:
+            return True
+
+        print(f"reducing domain for {self}")
+        # TODO none of the examples run this
+        for bobj in self._vobjs:
+
+            length = bboat.BOAT_LENGTH[bobj.name]
+
+            if length != 2 or bobj.nbr_values() <= 1:
+                continue
+
+            for val in bobj.get_domain()[:]:
+                if val != destroyer_loc and not bobj.hide(val):
+                    return False
+            break
+
+        return True
+
+
+    def forward_check(self, assignments):
+        """Forward check for boat ends:
+
+        If there is water cell one away from the open end,
+        we have a destoryer location.
+
+        if a boat end, is not on 'edge' of water cells
+        (see grid bounds ends)
+        """
+        # TODO BoatEnd.forward_check what is that 2nd condition
+
+        x, y = self._loc
+        if EGrid.ASSIGNED in self.extra.grid[x][y]:
+            return True
+
+        rval = self._destroyer_end()
+
+        return rval
 
 
 class BoatMid(BBoatConstraint, bboat_cnstr.BoatMid):
@@ -620,7 +681,7 @@ class BoatSub(BBoatConstraint, bboat_cnstr.BoatSub):
         """Use the base constraint to update the boat variable
         domains then update grid."""
 
-        fully = super().preprocess()
+        super().preprocess()
 
         for x, y in bboat.grid_neighs(*self._loc):
             if not self.extra.assign_grid(x, y, EGrid.WATER):
@@ -629,7 +690,7 @@ class BoatSub(BBoatConstraint, bboat_cnstr.BoatSub):
         if not self.extra.assign_grid(*self._loc, EGrid.ROUND):
             raise cnstr.PreprocessorConflict(str(self))
 
-        return fully
+        return True
 
 
 # %%  load and define puzzles
@@ -655,21 +716,39 @@ def build_puzzle(filename):
     if not pairs:
         return None
 
+    row_sums_value = col_sums_value = None
+    for key, value in pairs:
+        if key == bboat.ROWSUM:
+            row_sums_value = value
+        elif key == bboat.COLSUM:
+            col_sums_value = value
+    if not row_sums_value or not col_sums_value:
+        raise cnstr.ConstraintError("Row and Col sums are required")
+
     cons = bboat_cnstr.build_cons(pairs, BOAT_CNSTR)
 
+    doc_str = filename + ':  \n' \
+                + '\n'.join(str(c) + '=' + str(v) for c, v in pairs)
+
     def build_func(boatprob):
-        """place holder"""
+        """place holder
+        vars from outer scope used:
+            row_sums_value, col_sums_value, cons,
+            filename and doc_str"""
 
         bboat_cnstr.add_basic(boatprob)
+
         boatprob.extra_data = BBExtra()
+        boatprob.extra_data.row_sums = row_sums_value
+        boatprob.extra_data.col_sums = col_sums_value
+
         for con in cons:
             boatprob.add_constraint(con, bboat.BOATS)
             con.set_extra(boatprob.extra_data)
         bboat_cnstr.add_final(boatprob)
 
     build_func.__name__ = f'build_puzzle("{filename}")'
-    build_func.__doc__ = filename + ':  \n' \
-            + '\n'.join(str(c)+ '=' + str(v) for c, v in pairs)
+    build_func.__doc__ = doc_str
 
     return build_func
 

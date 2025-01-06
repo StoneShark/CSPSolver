@@ -154,7 +154,7 @@ class Problem:
 
 
     def add_list_constraint(self, list_con, con_var_pairs):
-        """Set the list constraints.
+        """Add a list constraint.
 
         Example:
             problem.add_list_constraint(AtLeastNCList(2, False),
@@ -164,6 +164,12 @@ class Problem:
         """
 
         self._spec.add_list_constraint(list_con, con_var_pairs)
+
+
+    def set_unique_sol_constraint(self, constraint, variables):
+        """Set the unique solution constraint."""
+
+        self._spec.set_unique_sol_constraint(constraint, variables)
 
 
     def get_solution(self):

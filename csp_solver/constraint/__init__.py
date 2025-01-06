@@ -14,3 +14,4 @@ from .cnstr_binary import *
 from .cnstr_concrete import *
 from .cnstr_natnbrs import *
 from .cnstr_sets import *
+from .cnstr_unique import *

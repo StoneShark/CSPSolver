@@ -259,6 +259,9 @@ class Backtracking(Solver):
         """Search for one or more solutions."""
 
         if len(assignments) == self._nbr_variables:
+            if self._spec.usol_cnstr:
+                self._spec.usol_cnstr.solution_found(assignments)
+
             solutions += [assignments]
             return solutions
 
@@ -381,9 +384,9 @@ class NonRecBacktracking(Solver):
         if not values:
 
             del self._assignments[var_name]
-            self._pop_extra()
 
             while self._queue:
+                self._pop_extra()
                 var_name, values, self._unassigned = self._queue.pop()
 
                 if self._forward:
@@ -394,7 +397,6 @@ class NonRecBacktracking(Solver):
                     break
 
                 del self._assignments[var_name]
-                self._pop_extra()
 
             else:   # if not queue and not values
                 return False
@@ -443,6 +445,9 @@ class NonRecBacktracking(Solver):
         while True:
 
             if len(self._assignments) == self._nbr_variables:
+                if self._spec.usol_cnstr:
+                    self._spec.usol_cnstr.solution_found(self._assignments)
+
                 yield self._assignments.copy()
                 if not self._queue:
                     return

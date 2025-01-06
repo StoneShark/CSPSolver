@@ -32,7 +32,8 @@ load-plugins=pylint.extensions.bad_builtin,
 # the last two have been renamed, but I'm still using python 3.12.4
 
 
-disable=consider-using-assignment-expr
+disable=consider-using-assignment-expr,
+    too-few-public-methods
 
 
 [MAGIC-VALUE]

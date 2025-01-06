@@ -29,7 +29,10 @@ class ProblemSpec:
         cnstr_dict is a dictionary created before calling the solver
         which supports lookup of constraints which use a particular
         variable:
-           var_name : constraints with var in them
+           var_name: constraints with var in them
+
+        usol_cnstr: is a constraint that can assure unique solutions
+        see cnstr_unique
     """
 
     variables: dict = dc.field(default_factory=dict)
@@ -38,6 +41,8 @@ class ProblemSpec:
 
     cnstr_dict: col.defaultdict = dc.field(
         default_factory=lambda : col.defaultdict(list))
+
+    usol_cnstr: cnstr.UniqueSolutionsIF = None
 
 
     def add_variable(self, var_name, values):
@@ -104,6 +109,22 @@ class ProblemSpec:
 
         list_con.set_constraints(clist)
         self.constraints += [list_con]
+
+
+    def set_unique_sol_constraint(self, constraint, variables):
+        """Set the constraint that ensures unique solutions.
+        Only one may be set per problem."""
+
+        if self.usol_cnstr:
+            raise ValueError('Only one unique solution constraint may be set')
+
+        if not isinstance(constraint, cnstr.UniqueSolutionsIF):
+            raise ValueError(f"{constraint} is not built on UniqueSolutionsIF")
+
+        constraint = self._finish_constraint(constraint, variables)
+        self.usol_cnstr = constraint
+
+        self.constraints += [constraint]
 
 
     def natural_numbers_required(self):

@@ -89,10 +89,6 @@ class AllDifferent(cnstr_base.Constraint):
     test those that we have. If they are not all different,
     we can short circuit with a False"""
 
-    def __repr__(self):
-        return 'AllDifferent()'
-
-
     def satisfied(self, assignments):
         """Test the given assignements."""
         _ = self
@@ -145,10 +141,6 @@ class AllEqual(cnstr_base.Constraint):
     It's fine if we don't have all the assigned values yet,
     test those that we have. If they are not all equal,
     we can short circuit with a False"""
-
-    def __repr__(self):
-        return 'AllEqual()'
-
 
     def satisfied(self, assignments):
         """Test the given assignements."""
@@ -265,11 +257,6 @@ class OneOrder(cnstr_base.Constraint):
 
     ARC_CONSIST_CHECK_OK = cnstr_base.ArcConCheck.CHECK_INST
 
-
-    def __repr__(self):
-        return 'OneOrder()'
-
-
     def satisfied(self, assignments):
         """Check for increasing value order."""
         _ = self
@@ -284,10 +271,6 @@ class OneOrder(cnstr_base.Constraint):
 
 class LessThan(cnstr_base.Constraint):
     """val1 < val2"""
-
-    def __repr__(self):
-        return 'LessThan()'
-
 
     def set_variables(self, vobj_list):
         """Check for exactly two variables."""
@@ -372,10 +355,6 @@ class LessThan(cnstr_base.Constraint):
 
 class LessThanEqual(cnstr_base.Constraint):
     """val1 <= val2"""
-
-    def __repr__(self):
-        return 'LessThanEqual()'
-
 
     def set_variables(self, vobj_list):
         """Check for exactly two variables."""

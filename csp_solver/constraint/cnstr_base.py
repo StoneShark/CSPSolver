@@ -86,7 +86,6 @@ class ConstraintIF(abc.ABC):
 
         return False
 
-
     @abc.abstractmethod
     def get_vnames(self):
         """Return the list of variable names.
@@ -153,6 +152,10 @@ class Constraint(ConstraintIF):
         self._vnames = None
         self._params = 0
         self._arc_con_ok = False
+
+
+    def __repr__(self):
+        return f'{self.__class__.__name__}()'
 
 
     def set_variables(self, vobj_list):

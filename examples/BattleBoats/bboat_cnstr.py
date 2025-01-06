@@ -691,7 +691,6 @@ class BoatSub(cnstr.Constraint):
         Reduce the domain of one sub to this location and return
         that the constraint is fully processed."""
 
-        fully = False
         not_placed = True
         empties = bboat.grid_neighs(*self._loc) + [self._loc]
 
@@ -702,7 +701,6 @@ class BoatSub(cnstr.Constraint):
                 if not_placed and bobj.nbr_values() > 1:
                     bobj.set_domain([(*self._loc, bboat.VERT)])
                     not_placed = False
-                    fully = True
                 continue
 
             if not bboat.empty_cells(empties, [bobj],
@@ -713,8 +711,7 @@ class BoatSub(cnstr.Constraint):
             # didn't find a sub var to reduce to loc
             raise cnstr.PreprocessorConflict(str(self),
                                              "couldn't place sub.")
-
-        return fully
+        return True
 
 
 # %%  boat order var chooser
@@ -755,14 +752,18 @@ def add_basic(boatprob):
 
 
 def add_final(boatprob):
-    """IncOne constraints need to be added last so that any variables
-    whose domains have been reduced to one value can be excluded by
-    the preprocessor."""
+    """Use the unique solution constraint to limit solutions
+    so that the same kinds of boats can be assigned in any
+    order.
+
+    This doesn't actually need to be in a seperate funciton."""
 
     # reduces solutions from 2! * 3! * 4! = 288 to 1
-    boatprob.add_constraint(IncOrder(), ['cruiser1', 'cruiser2'])
-    boatprob.add_constraint(IncOrder(), ['destroyer1', 'destroyer2', 'destroyer3'])
-    boatprob.add_constraint(IncOrder(), ['sub1', 'sub2', 'sub3', 'sub4'])
+    var_sets = [['cruiser1', 'cruiser2'],
+                ['destroyer1', 'destroyer2', 'destroyer3'],
+                ['sub1', 'sub2', 'sub3', 'sub4']]
+    boatprob.set_unique_sol_constraint(cnstr.UniqueSets(var_sets),
+                                       bboat.BOATS)
 
 
 BOAT_CNSTR = {bboat.ROWSUM: RowSum,
@@ -887,4 +888,4 @@ if __name__ == '__test_example__':
 # # bprob.print_domains()
 
 # sol = bprob.get_all_solutions()
-# # bboat.print_grid(sol[0])
+# bboat.print_grid(sol[0])
