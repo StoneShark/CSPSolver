@@ -14,7 +14,7 @@ class UniqueSolutionsIF(cnstr_base.Constraint):
     The definition of 'duplicate' is left entirely to the
     derived classes.
 
-    Child constraint's satisfied method will be called during
+    A derived class's satisfied method will be called during
     the solver's get_solution calls. It should return False, if
     the current assignment dictionary is known to be a duplicate
     solution and True otherwise.
@@ -91,7 +91,9 @@ class UniqueSets(UniqueSolutionsIF):
 
 
     def satisfied(self, assignments):
-        """Check to ."""
+        """Check for a unique solution.
+        Before any solutions are found, no extra work is done.
+        The test is not done until all assignments are made."""
 
         if not self._saved_solutions or self._params != len(assignments):
             return True
