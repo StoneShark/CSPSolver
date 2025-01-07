@@ -232,6 +232,7 @@ build_funcs = []
 for bnbr in range(len(grids)):
     bfunc = ft.partial(build, bnbr)
     bfunc.__name__ = f'build({bnbr}, '
+    bfunc.__doc__ = f'Hashi puzzle {bnbr + 1}.'
     build_funcs += [bfunc]
 
 
