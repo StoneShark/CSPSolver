@@ -186,7 +186,7 @@ class Solver(abc.ABC):
         if not self._forward:
             return True
 
-        fc_vars = set(var_name)
+        fc_vars = set([var_name])
         while fc_vars:
 
             vname = fc_vars.pop()
