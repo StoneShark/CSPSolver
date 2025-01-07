@@ -166,8 +166,10 @@ class AllEqual(cnstr_base.Constraint):
         """If any of the values have been set, then hide any other
         values from the domains of the unset variables."""
 
-        known_val = list(assignments.values())[0]
+        if not assignments:
+            return True
 
+        known_val = list(assignments.values())[0]
         changes = self.hide_bad_values(
                         assignments,
                         lambda _, value: value == known_val)
