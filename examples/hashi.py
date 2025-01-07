@@ -172,6 +172,7 @@ def build(build_nbr, prob):
                 verts += [isle + nisle]
                 break
 
+    prob.forward_check = True
     prob.add_variables(nodes, [0, 1, 2])
 
     # each isle must have cnt number of bridges in/out

@@ -20,6 +20,7 @@ def setup(positions, colors):
     """Create a mastermind problem with positions and colors"""
 
     mmind = csp.Problem()
+    mmind.enable_forward_check()
 
     mmind.add_variables(POSITIONS[:positions],
                         COLORS[:colors])
