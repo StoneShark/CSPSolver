@@ -42,6 +42,15 @@ class Problem:
 
 
     @property
+    def pspec(self):
+        """Return the problem spec.
+        It's best not use this for anything other than reference;
+        that is, don't change anything except with other interface
+        functions."""
+        return self._spec
+
+
+    @property
     def solver(self):
         """Return the solver."""
         return self._solver
