@@ -179,7 +179,6 @@ class BBExtra(extra_data.ExtraDataIF):
         self._queue = collections.deque()
 
 
-
     def __str__(self):
         """Return the grid string."""
 
@@ -318,6 +317,8 @@ class BBExtra(extra_data.ExtraDataIF):
 
 # %% constraints
 
+# TODO forward_checks never return variables with changed domains
+
 class BBoatConstraint(cnstr.Constraint):
     """Common handling of extra data.
     This is mixed with constraints from bboat_cnstr, don't
@@ -334,13 +335,44 @@ class BBoatConstraint(cnstr.Constraint):
         self.extra = extra
 
 
-class BoatBoundaries(BBoatConstraint):
-    """Boats must not overlap and no boat may be in the boundary
-    of another.
+    def reduce_to(self, assignments, boat_loc, boat_len):
+        """Reduce one of the boat domains to boat_loc;
+        the selected boat must be boat_len long.
 
-    BBExtra implemented this constraint check.
-    The constraint is here to support forward checking
-    which can't be done in the extra_data."""
+        This should only be called from forward_check
+        methods.
+
+        Return False if a domain is eliminated,
+        otherwise return True."""
+
+        changes = set()
+
+        for bobj in self._vobjs:
+            length = bboat.BOAT_LENGTH[bobj.name]
+
+            if (bobj.name in assignments
+                    or length != boat_len
+                    or bobj.nbr_values() <= 1
+                    or boat_loc not in bobj.get_domain()):
+                continue
+            # print(f"{self} reducing domain for {bobj.name} to {boat_loc}")
+
+            for value in bobj.get_domain()[:]:
+                if value == boat_loc:
+                    continue
+
+                changes |= {bobj.name}
+                if not bobj.hide(value):
+                    return False
+            return changes
+
+        return True
+
+
+class PropagateBBoat(BBoatConstraint):
+    """Propagate what we know about the bboat grid.
+    Extra_data cannot adjust variable domains,
+    the forward_check here does that."""
 
     def satisfied(self, boat_dict):
         """Checked by BBExtra, return True."""
@@ -353,14 +385,20 @@ class BoatBoundaries(BBoatConstraint):
         """Hide all values that are in the boundary or already
         occupied."""
 
+        # TODO expand PropagateBBoat
+
         hide_list = [(x, y) for x in range(1, bboat.SIZE_P1)
-                     for y in range(1, bboat.SIZE_P1)
-                     if self.extra.grid[x][y].no_new_parts()]
+                      for y in range(1, bboat.SIZE_P1)
+                      if self.extra.grid[x][y].no_new_parts()]
 
         unassigned= [vobj for vobj in self._vobjs
-                     if vobj.name not in assignments]
+                      if vobj.name not in assignments]
 
-        return bboat.empty_cells(hide_list, unassigned, variable.Variable.hide)
+        rval = bboat.empty_cells(hide_list,
+                                  unassigned,
+                                  variable.Variable.hide)
+
+        return rval
 
 
 class RowSum(BBoatConstraint, bboat_cnstr.RowSum):
@@ -434,15 +472,19 @@ class RowSum(BBoatConstraint, bboat_cnstr.RowSum):
                 if not self.extra.assign_grid(x, y, EGrid.BOAT_PART):
                     return False
 
-        # TODO scan for known boat locations
+        # scan for known boat locations
+        #  cannot place subs here because a run of 1 could be a crossing boat
         blen = 0
+        bstart = None
         for y in range(1, bboat.SIZE_P1):
             cell_val = self.extra.grid[self._row][y]
             if EGrid.BOAT_PART in cell_val and EGrid.ASSIGNED not in cell_val:
+                if not blen:
+                    bstart = (self._row, y, bboat.HORZ)
                 blen += 1
             elif blen > 1:
-                # we know there a boat of len blen there
-                print('found a known boat')
+                self.reduce_to(assignments, bstart, blen)    # TODO use ret val
+                blen = 0
 
         return True
 
@@ -512,12 +554,26 @@ class ColSum(BBoatConstraint, bboat_cnstr.ColSum):
                                      unassigned,
                                      variable.Variable.hide)
 
-        if cur_sum + len(open_cells) == self._row_sum:
+        if cur_sum + len(open_cells) == self._col_sum:
             for x, y in open_cells:
                 if not self.extra.assign_grid(x, y, EGrid.BOAT_PART):
                     return False
 
-        # TODO scan for known boat locations
+        # scan for known boat locations
+        #  cannot place subs here because a run of 1 could be a crossing boat
+        blen = 0
+        bstart = None
+        for x in range(1, bboat.SIZE_P1):
+            cell_val = self.extra.grid[x][self._col]
+
+            if EGrid.BOAT_PART in cell_val and EGrid.ASSIGNED not in cell_val:
+                if not blen:
+                    bstart = (x, self._col, bboat.VERT)
+                blen += 1
+            elif blen > 1:
+                self.reduce_to(assignments, bstart, blen)  # TODO use ret val
+                blen = 0
+
         return True
 
 
@@ -578,7 +634,7 @@ class BoatEnd(BBoatConstraint, bboat_cnstr.BoatEnd):
         return False
 
 
-    def _destroyer_end(self):
+    def _destroyer_end(self, assignments):
         """Check for a destroyer at _loc based on water being two
         away from open end.
         There is no boat assigned at _loc.
@@ -586,7 +642,7 @@ class BoatEnd(BBoatConstraint, bboat_cnstr.BoatEnd):
         otherwise, return True."""
 
         x, y = self._loc
-        dx, dy = bboat.CONT_INCS(self._cont_dir)
+        dx, dy = bboat.CONT_INCS[self._cont_dir]
 
         if (self._cont_dir in (bboat.LEFT, bboat.RIGHT)
                 and EGrid.WATER in self.extra.grid[x + 2 * dx][y]):
@@ -599,21 +655,9 @@ class BoatEnd(BBoatConstraint, bboat_cnstr.BoatEnd):
         else:
             return True
 
-        print(f"reducing domain for {self}")
         # TODO none of the examples run this
-        for bobj in self._vobjs:
-
-            length = bboat.BOAT_LENGTH[bobj.name]
-
-            if length != 2 or bobj.nbr_values() <= 1:
-                continue
-
-            for val in bobj.get_domain()[:]:
-                if val != destroyer_loc and not bobj.hide(val):
-                    return False
-            break
-
-        return True
+        print("BoatEnd reducing domain")
+        return self.reduce_to(assignments, destroyer_loc, 2)
 
 
     def forward_check(self, assignments):
@@ -631,7 +675,7 @@ class BoatEnd(BBoatConstraint, bboat_cnstr.BoatEnd):
         if EGrid.ASSIGNED in self.extra.grid[x][y]:
             return True
 
-        rval = self._destroyer_end()
+        rval = self._destroyer_end(assignments)
 
         return rval
 
@@ -736,7 +780,7 @@ def build_puzzle(filename):
             row_sums_value, col_sums_value, cons,
             filename and doc_str"""
 
-        bboat_cnstr.add_basic(boatprob)
+        bboat_cnstr.add_basic(boatprob, PropagateBBoat)
 
         boatprob.extra_data = BBExtra()
         boatprob.extra_data.row_sums = row_sums_value
@@ -744,7 +788,9 @@ def build_puzzle(filename):
 
         for con in cons:
             boatprob.add_constraint(con, bboat.BOATS)
+        for con in boatprob.pspec.constraints:
             con.set_extra(boatprob.extra_data)
+
         bboat_cnstr.add_final(boatprob, uset_cnstr=True)
 
     build_func.__name__ = f'build_puzzle("{filename}")'
@@ -796,3 +842,16 @@ if __name__ == '__test_example__':
         build(bprob)
         sol = bprob.get_solution()
         bboat.print_grid(sol)
+
+
+
+# build = build_puzzle("test_mid_pre.txt")
+
+# bprob = problem.Problem()
+# build(bprob)
+
+# bprob._spec.prepare_variables()
+# bprob.print_domains()
+
+# sol = bprob.get_all_solutions()
+# bboat.print_grid(sol[0])

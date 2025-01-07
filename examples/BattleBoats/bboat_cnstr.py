@@ -47,15 +47,14 @@ from csp_solver import variable
 
 # %% constraints
 
+# TODO forward_checks never return variables with changed domains
+
+
 class BoatBoundaries(cnstr.Constraint):
     """Boats must not overlap and no boat may be in the boundary
     of another.
 
     If only one boat is assigned, return True."""
-
-    def __repr__(self):
-        return 'BoatBoundaries()'
-
 
     @staticmethod
     def satisfied(boat_dict):
@@ -736,7 +735,7 @@ BoatOrder()  # to catch any interface changes
 
 # %%  load and define puzzles
 
-def add_basic(boatprob):
+def add_basic(boatprob, bboat_constraint):
     """Add the basic constraints common to all battle boats problems."""
 
     boatprob.solver = solver.NonRecBacktracking()
@@ -748,7 +747,7 @@ def add_basic(boatprob):
         boatprob.add_variable(bname, bboat.pos_locs(length))
 
     #  boats should not overlap or touch
-    boatprob.add_constraint(BoatBoundaries(), bboat.BOATS)
+    boatprob.add_constraint(bboat_constraint(), bboat.BOATS)
 
 
 def add_final(boatprob, uset_cnstr=False):
@@ -827,7 +826,7 @@ def build_puzzle(filename):
     def build_func(boatprob):
         """place holder"""
 
-        add_basic(boatprob)
+        add_basic(boatprob, BoatBoundaries)
         for con in cons:
             boatprob.add_constraint(con, bboat.BOATS)
         add_final(boatprob)
