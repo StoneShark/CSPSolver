@@ -56,6 +56,8 @@ CONT_INCS = ((-1, 0),
              (1, 0),
              (0, -1))
 
+CONT_ORIENT = (VERT, HORZ, VERT, HORZ)
+
 
 # %%  grid and boat helper functions
 
@@ -65,6 +67,17 @@ def cont_pos(loc, direction):
 
     return tuple(a + b for a, b in zip(loc,
                                        CONT_INCS[direction]))
+
+
+def assign_loc(x1, y1, x2, y2):
+    """Given the boat ends, return the assignment location
+    i.e. the upper left of the two points.
+    Either x1 == x2  or  y1 == y2"""
+
+    if x1 < x2 or y1 < y2:
+        return x1, y1
+
+    return x2, y2
 
 
 def grid_diags(x, y):
@@ -295,6 +308,9 @@ def empty_cells(empty_list, vobjs_list, func):
     Call with func as one of:
       variable.Variable.remove_dom_val for preprocessor
       variable.Variable.hide for forward_check
+
+    This does not collect a list of changed variables
+    because it is significantly slower.
 
     Return False if overconstrainted (e.g. any domain is emptied),
     True otherwise.  Forward check can return the return value.

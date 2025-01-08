@@ -13,8 +13,7 @@ Uses the extra data feature of the constraint engine:
 Constraints:
     BBoatConstraint - base class for other constraints using extra data
 
-    * BoatBoundaries
-    * IncOrder - reused directly from bboat_cnstr
+    * PropagateBBoat
 
     These are all built on top of the bboat_cnstr contraint of the
     same name:
@@ -55,6 +54,10 @@ from csp_solver import extra_data
 from csp_solver import problem
 from csp_solver import variable
 
+# nicknames to shorten code (remember to send var object as first param)
+HIDE_FUNC = variable.Variable.hide
+REMOVE_FUNC = variable.Variable.remove_dom_val
+
 
 # %%  enums
 
@@ -68,10 +71,12 @@ class EGrid(enum.Flag):
         a boat part, but not what part)."""
 
     UNKNOWN = 0
+    NONE = 0
 
-    WATER = enum.auto()      # cell is water
-    BOAT_PART = enum.auto()  # cell contains a boat part (either assigned or not)
-    ASSIGNED = enum.auto()   # cell has been assigned with a full boat
+    WATER = enum.auto()      # is water
+    BOAT_PART = enum.auto()  # contains a boat part (either assigned or not)
+    ASSIGNED = enum.auto()   # has been assigned with a full boat
+    REDUCED = enum.auto()    # a domain var has been reduced for this cell
 
     # individual flag values -- but use the non-private ones below
     _BOUNDARY = enum.auto()
@@ -99,6 +104,7 @@ class EGrid(enum.Flag):
             3. are a unidentified boat part"""
 
         return (not self
+                or EGrid.REDUCED in self
                 or (EGrid.ASSIGNED not in self
                     and EGrid.BOAT_PART in self
                     and what == self)
@@ -150,6 +156,11 @@ BPART_FROM_DIRECT = [EGrid.END_BOT,    # cont_dir == UP
                      EGrid.END_RGT,    # cont_dir == LEFT
                      ]
 
+OPP_END_FROM_DIRECT = [EGrid.END_TOP,    # cont_dir == UP
+                       EGrid.END_RGT,    # cont_dir == RIGHT
+                       EGrid.END_BOT,    # cont_dir == DOWN
+                       EGrid.END_LFT,    # cont_dir == LEFT
+                       ]
 
 # %% extra data
 
@@ -232,49 +243,53 @@ class BBExtra(extra_data.ExtraDataIF):
 
 
     @staticmethod
-    def _assign_temp_bpart(temp_grid, x, y, part):
+    def assign_bpart(grid, x, y, part, flags=EGrid.NONE):
         """Assign the boat part and boundary if it's ok and return True,
         else return False.
+        grid might be self.grid or a temporary grid.
         Don't overwrite water cells with boundary cells."""
 
-        if part == EGrid.BOUNDARY and EGrid.WATER in temp_grid[x][y]:
+        if part == EGrid.BOUNDARY and EGrid.WATER in grid[x][y]:
             return True
 
-        if temp_grid[x][y].ok_to_assign(part):
-            temp_grid[x][y] = part | EGrid.ASSIGNED
+        if grid[x][y].ok_to_assign(part):
+            grid[x][y] = part | flags
+            if EGrid.ASSIGNED in flags:
+                grid[x][y] &= ~EGrid.REDUCED
             return True
 
         return False
 
 
     @staticmethod
-    def _place_boat(temp_grid, loc, length):
+    def place_boat(grid, loc, length, flags=EGrid.NONE):
         """Place the boat.
+        grid might be self.grid or a temporary grid.
         Return True if placed ok, False otherwise."""
 
         x, y, orient = loc
 
         if length == 1:
-            if not BBExtra._assign_temp_bpart(temp_grid, x, y, EGrid.ROUND):
+            if not BBExtra.assign_bpart(grid, x, y, EGrid.ROUND, flags=flags):
                 return False
             return True
 
         dx, dy = bboat.INCS[orient]
         ul_end, lr_end = ENDS[orient]
 
-        if not BBExtra._assign_temp_bpart(temp_grid, x, y, ul_end):
+        if not BBExtra.assign_bpart(grid, x, y, ul_end, flags=flags):
             return False
 
         for i in range(1, length - 1):
-            if not BBExtra._assign_temp_bpart(temp_grid,
-                                              x + i * dx, y + i * dy,
-                                              EGrid.MID):
+            if not BBExtra.assign_bpart(grid,
+                                        x + i * dx, y + i * dy,
+                                        EGrid.MID, flags=flags):
                 return False
 
         i = length - 1
-        if not BBExtra._assign_temp_bpart(temp_grid,
-                                          x + i * dx, y + i * dy,
-                                          lr_end):
+        if not BBExtra.assign_bpart(grid,
+                                    x + i * dx, y + i * dy,
+                                    lr_end, flags=flags):
             return False
 
         return True
@@ -296,11 +311,11 @@ class BBExtra(extra_data.ExtraDataIF):
         length = bboat.BOAT_LENGTH[vname]
         temp_grid = copy.deepcopy(self.grid)
 
-        if not self._place_boat(temp_grid, val, length):
+        if not self.place_boat(temp_grid, val, length, flags=EGrid.ASSIGNED):
             return False
 
         for x, y in bboat.grids_bounding(*val, length):
-            if not BBExtra._assign_temp_bpart(temp_grid, x, y, EGrid.BOUNDARY):
+            if not BBExtra.assign_bpart(temp_grid, x, y, EGrid.BOUNDARY):
                 return False
 
         self._queue.append((vname, self.grid))
@@ -316,8 +331,6 @@ class BBExtra(extra_data.ExtraDataIF):
 
 
 # %% constraints
-
-# TODO forward_checks never return variables with changed domains
 
 class BBoatConstraint(cnstr.Constraint):
     """Common handling of extra data.
@@ -335,23 +348,30 @@ class BBoatConstraint(cnstr.Constraint):
         self.extra = extra
 
 
-    def reduce_to(self, assignments, boat_loc, boat_len):
+    def reduce_to(self, boat_loc, boat_len,
+                  func=REMOVE_FUNC,  assignments=None):
         """Reduce one of the boat domains to boat_loc;
         the selected boat must be boat_len long.
 
-        This should only be called from forward_check
-        methods.
+        This MUST be called before the grid cells are set to REDUCED!
+
+        Call with func as one of:
+          variable.Variable.remove_dom_val for preprocessor
+          variable.Variable.hide for forward_check
+
+        Default parameters are set for preprocessor.
 
         Return False if a domain is eliminated,
         otherwise return True."""
 
-        changes = set()
+        x, y, _ = boat_loc
 
         for bobj in self._vobjs:
             length = bboat.BOAT_LENGTH[bobj.name]
 
-            if (bobj.name in assignments
+            if ((assignments and bobj.name in assignments)
                     or length != boat_len
+                    or EGrid.REDUCED in self.extra.grid[x][y]
                     or bobj.nbr_values() <= 1
                     or boat_loc not in bobj.get_domain()):
                 continue
@@ -361,12 +381,24 @@ class BBoatConstraint(cnstr.Constraint):
                 if value == boat_loc:
                     continue
 
-                changes |= {bobj.name}
-                if not bobj.hide(value):
+                if not func(bobj, value):
                     return False
-            return changes
+            return True
 
         return True
+
+
+    def set_reduced(self, boat_loc, boat_len):
+        """Set the grid cells for a boat of length boat_len
+        at boat_loc to REDUCED. boat_loc is always the
+        upper-left end of the boat.
+
+        This must be done after reduce_to is called."""
+
+        for x, y in bboat.grids_occed(*boat_loc, boat_len):
+
+            if 0 < x < bboat.SIZE_P1 and 0 < y < bboat.SIZE_P1:
+                self.extra.grid[x][y] |= EGrid.REDUCED
 
 
 class PropagateBBoat(BBoatConstraint):
@@ -395,8 +427,8 @@ class PropagateBBoat(BBoatConstraint):
                       if vobj.name not in assignments]
 
         rval = bboat.empty_cells(hide_list,
-                                  unassigned,
-                                  variable.Variable.hide)
+                                 unassigned,
+                                 variable.Variable.hide)
 
         return rval
 
@@ -483,7 +515,9 @@ class RowSum(BBoatConstraint, bboat_cnstr.RowSum):
                     bstart = (self._row, y, bboat.HORZ)
                 blen += 1
             elif blen > 1:
-                self.reduce_to(assignments, bstart, blen)    # TODO use ret val
+                if not self.reduce_to(bstart, blen, HIDE_FUNC, assignments):
+                    return False
+                self.set_reduced(bstart, blen)
                 blen = 0
 
         return True
@@ -571,7 +605,9 @@ class ColSum(BBoatConstraint, bboat_cnstr.ColSum):
                     bstart = (x, self._col, bboat.VERT)
                 blen += 1
             elif blen > 1:
-                self.reduce_to(assignments, bstart, blen)  # TODO use ret val
+                if not self.reduce_to(bstart, blen, HIDE_FUNC, assignments):
+                    return False
+                self.set_reduced(bstart, blen)
                 blen = 0
 
         return True
@@ -604,14 +640,15 @@ class BoatEnd(BBoatConstraint, bboat_cnstr.BoatEnd):
     def _update_grid(self, empties):
         """Update the grid with the BoatEnd constraint info.
         Put water in the bounding cells and an UNKnown PART
-        in the CONTinue DIRection."""
+        in the CONTinue DIRection.
+
+        Call only from preprocessor!"""
 
         for x, y in empties:
             if not self.extra.assign_grid(x, y, EGrid.WATER):
                 raise cnstr.PreprocessorConflict(str(self))
 
-        cont_pos = bboat.cont_pos(self._loc, self._cont_dir)
-        cx, cy = cont_pos
+        cx, cy = bboat.cont_pos(self._loc, self._cont_dir)
         x, y = self._loc
         bpart = BPART_FROM_DIRECT[self._cont_dir]
 
@@ -622,42 +659,124 @@ class BoatEnd(BBoatConstraint, bboat_cnstr.BoatEnd):
             raise cnstr.PreprocessorConflict(str(self))
 
 
+    def _deduce_boat(self):
+        """If there is an opposite end 1, 2 or 3 cells
+        from the open end; we can place a boat.
+
+        Placing a boat means filling the grid and
+        reducing the domain of one variable to the
+        assignment location.
+
+        Call only from preprocessor!
+
+        If we place a boat without conflict the contraint
+        is fully processed, return True!"""
+
+        x, y = self._loc
+        if EGrid.REDUCED in self.extra.grid[x][y]:
+            return True
+
+        dx, dy = bboat.CONT_INCS[self._cont_dir]
+        opp_end = OPP_END_FROM_DIRECT[self._cont_dir]
+
+        for delta in (1, 2, 3):
+            end_x = x + delta * dx
+            end_y = y + delta * dy
+            if (0 < end_x < bboat.SIZE_P1
+                    and 0 < end_y < bboat.SIZE_P1
+                    and opp_end in self.extra.grid[end_x][end_y]):
+                break
+        else:
+            # if there is a mid part 1 away from the end we have a battleship
+            # adjust the vars to place it
+            # this will only be caught if the mid constraint was preproc'ed 1st
+            mid_x = x + 2 * dx
+            mid_y = y + 2 * dy
+            if (0 < mid_x < bboat.SIZE_P1
+                    and 0 < mid_y < bboat.SIZE_P1
+                    and EGrid.MID in self.extra.grid[mid_x][mid_y]):
+                delta = 3
+                end_x = x + delta * dx
+                end_y = y + delta * dy
+            else:
+                # can't deduce the boat type
+                return False
+
+        boat_loc = bboat.assign_loc(x, y, end_x, end_y)
+        boat_val =(*boat_loc, bboat.CONT_ORIENT[self._cont_dir])
+        boat_len = delta + 1
+        # print(f"{self}: Deduced boat {boat_len} at {boat_val}.")
+
+        if not self.reduce_to(boat_val, boat_len):
+            raise cnstr.PreprocessConflict(str(self))
+
+        if not self.extra.place_boat(self.extra.grid, boat_val, boat_len,
+                                     flags=EGrid.REDUCED):
+            raise cnstr.PreprocessConflict(str(self))
+
+        for x, y in bboat.grids_bounding(*boat_val, boat_len):
+            if not BBExtra.assign_bpart(self.extra.grid,
+                                        x, y, EGrid.BOUNDARY):
+                raise cnstr.PreprocessConflict(str(self))
+
+        return True
+
+
     def preprocess(self):
-        """Update the grid and let the base constraint update
-        the variable domains."""
+        """Let the base constraint update the variable domains.
+        Update the grid and see if have a full position."""
 
         super().preprocess()
 
+        rval = False
         empties = bboat.grids_bound_end(*self._loc, self._cont_dir)
         self._update_grid(empties)
 
-        return False
+        rval = self._deduce_boat()
+
+        return rval
 
 
     def _destroyer_end(self, assignments):
         """Check for a destroyer at _loc based on water being two
         away from open end.
         There is no boat assigned at _loc.
+
         Return False if a variable is overconstrained,
         otherwise, return True."""
 
         x, y = self._loc
+
         dx, dy = bboat.CONT_INCS[self._cont_dir]
+        cx, cy =  bboat.cont_pos(self._loc, self._cont_dir)
 
-        if (self._cont_dir in (bboat.LEFT, bboat.RIGHT)
+        #  checking boat dir first, assures computed loc is on grid
+        if (self._cont_dir == bboat.LEFT
                 and EGrid.WATER in self.extra.grid[x + 2 * dx][y]):
-            destroyer_loc = (x, y, bboat.HORZ)
+            destroyer_loc = (x , y, bboat.HORZ)
 
-        elif (self._cont_dir in (bboat.UP, bboat.DOWN)
+        elif (self._cont_dir == bboat.RIGHT
+                and EGrid.WATER in self.extra.grid[x + 2 * dx][y]):
+            destroyer_loc = (cx , y, bboat.HORZ)
+
+        elif (self._cont_dir == bboat.UP
+                  and EGrid.WATER in self.extra.grid[x][y + 2 * dy]):
+            destroyer_loc = (x, cy, bboat.VERT)
+
+        elif (self._cont_dir == bboat.DOWN
                   and EGrid.WATER in self.extra.grid[x][y + 2 * dy]):
             destroyer_loc = (x, y, bboat.VERT)
 
         else:
             return True
 
-        # TODO none of the examples run this
-        print("BoatEnd reducing domain")
-        return self.reduce_to(assignments, destroyer_loc, 2)
+        # print("BoatEnd reducing domain")
+        if not self.reduce_to(destroyer_loc, 2, HIDE_FUNC, assignments):
+            return False
+        self.extra.grid[x][y] |= EGrid.REDUCED
+        self.extra.grid[cx][cy] |= EGrid.REDUCED
+
+        return True
 
 
     def forward_check(self, assignments):
@@ -672,7 +791,8 @@ class BoatEnd(BBoatConstraint, bboat_cnstr.BoatEnd):
         # TODO BoatEnd.forward_check what is that 2nd condition
 
         x, y = self._loc
-        if EGrid.ASSIGNED in self.extra.grid[x][y]:
+        if (EGrid.ASSIGNED in self.extra.grid[x][y]
+                or EGrid.REDUCED in self.extra.grid[x][y]):
             return True
 
         rval = self._destroyer_end(assignments)
@@ -706,10 +826,14 @@ class BoatMid(BBoatConstraint, bboat_cnstr.BoatMid):
         if not self.extra.assign_grid(*self._loc, EGrid.MID):
             raise cnstr.PreprocessorConflict(str(self))
 
+        # TODO if there is a mid part 1 away from an end we have a battleship
+
         return False
+
 
     # TODO write BoatMid.forward_check
     # place BOAT_PART s when we know where they should go
+    # if battleship is assigned then a mid must be a cruiser
 
 
 class BoatSub(BBoatConstraint, bboat_cnstr.BoatSub):

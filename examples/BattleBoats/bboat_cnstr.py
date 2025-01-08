@@ -22,6 +22,8 @@ Constraints defined:
                   boat may extend in either direction
         BoatSub - puzzle specifies a submarine (boat length of 1)
 
+Forward_checks for the constraints do not return changed variables.
+Brief testing showed that is much slower.
 
 Created on Fri May  5 03:40:16 2023
 @author: Ann"""
@@ -46,9 +48,6 @@ from csp_solver import variable
 
 
 # %% constraints
-
-# TODO forward_checks never return variables with changed domains
-
 
 class BoatBoundaries(cnstr.Constraint):
     """Boats must not overlap and no boat may be in the boundary
