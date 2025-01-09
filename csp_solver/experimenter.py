@@ -59,8 +59,8 @@ def load_class_lists():
 
 ALL = 'all'
 KEEP = 'keep'
-TRUE = 'true'
-FALSE = 'false'
+ON = 'on'
+OFF = 'off'
 
 DONT_SET = {KEEP, ALL}
 
@@ -69,7 +69,7 @@ TIMEIT_ONE = 'timeit_one'
 TIMEIT = 'timeit'
 
 TIMERS = ['none', PROFILE, TIMEIT_ONE, TIMEIT]
-FORWARDS = [TRUE, FALSE, KEEP]
+FORWARDS = [ON, OFF, KEEP]
 
 STD_INDENT = '    '
 
@@ -79,9 +79,9 @@ STD_INDENT = '    '
 def set_forward(cargs, prob_inst):
     """Set the forward check per command line args."""
 
-    if cargs.forward == TRUE:
+    if cargs.forward == ON:
         prob_inst.forward_check = True
-    elif cargs.forward == FALSE:
+    elif cargs.forward == OFF:
         prob_inst.forward_check = False
 
 
@@ -331,8 +331,8 @@ def define_parser(nbr_builds):
 
     parser.add_argument('--forward', action='store',
                         choices=FORWARDS, default=KEEP,
-                        help="""Enable the forward checking with 'true';
-                        disable with 'false'. Use as built with 'keep'.
+                        help="""Enable the forward checking with 'on';
+                        disable with 'off'. Use as built with 'keep'.
                         Default: %(default)s""")
 
     parser.add_argument('--timer', action='store',
@@ -405,7 +405,7 @@ def parse_args(nbr_builds):
         print("Var chooser isn't used with MinConflictSolver.")
         cargs.var_chooser = KEEP
 
-    if (cargs.forward == FALSE
+    if (cargs.forward == OFF
             and cargs.arc_consist != KEEP
             and ARC_CONSIST[cargs.arc_consist]):
         print("Arc Consistency behavior is not well defined without --forward.")
