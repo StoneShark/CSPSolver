@@ -59,35 +59,88 @@ def load_class_lists():
 
 ALL = 'all'
 KEEP = 'keep'
+TRUE = 'true'
+FALSE = 'false'
 
+DONT_SET = {KEEP, ALL}
 
 PROFILE = 'profile'
 TIMEIT_ONE = 'timeit_one'
 TIMEIT = 'timeit'
 
 TIMERS = ['none', PROFILE, TIMEIT_ONE, TIMEIT]
+FORWARDS = [TRUE, FALSE, KEEP]
 
 STD_INDENT = '    '
 
 
 # %% experiments
 
+def set_forward(cargs, prob_inst):
+    """Set the forward check per command line args."""
+
+    if cargs.forward == TRUE:
+        prob_inst.forward_check = True
+    elif cargs.forward == FALSE:
+        prob_inst.forward_check = False
+
+
+def build_the_problem(cargs, build):
+    """Build the problem. Change the sovler, var_chooser,
+    forward_checking and arc consistency if the args
+    are specified."""
+
+    # classes not loaded until needed
+    if not SOLVERS:
+        load_class_lists()
+
+    prob_inst = problem.Problem()
+    build(prob_inst)
+
+    if cargs.solver not in DONT_SET:
+        prob_inst.solver = SOLVERS[cargs.solver]
+
+    if cargs.var_chooser not in DONT_SET:
+        prob_inst.var_chooser = VAR_CHOOSERS[cargs.var_chooser]
+
+    if cargs.arc_consist not in DONT_SET:
+        prob_inst.arc_con = ARC_CONSIST[cargs.arc_consist]
+
+    set_forward(cargs, prob_inst)
+
+    return prob_inst
+
+
+def print_prob_desc(cargs, build, prob_inst):
+    """Print the problem parameters as built."""
+
+    print('Build:', build.__name__)
+    if cargs.solver != ALL:
+        print('Solver:', prob_inst.solver_name())
+    if cargs.var_chooser != ALL:
+        print('Chooser:', prob_inst.var_chooser_name())
+    print('Arc Consist:', prob_inst.arc_con_name())
+    print('Forward check:', 'On' if prob_inst.forward_check else 'Off')
+    print()
+
+
 def run_the_choosers(cargs, build):
     """Run all the chooser, timing them."""
 
+    # classes not loaded until needed
     if not VAR_CHOOSERS:
         load_class_lists()
 
-    print('Timing each var_chooser (each might not find solution):')
+    first = True
     for chooser in VAR_CHOOSERS.values():
 
-        prob_inst = problem.Problem()
-
-        if cargs.forward:
-            prob_inst.enable_forward_check()
-
-        build(prob_inst)
+        prob_inst = build_the_problem(cargs, build)
         prob_inst.var_chooser = chooser
+        set_forward(cargs, prob_inst)
+        if first:
+            print_prob_desc(cargs, build, prob_inst)
+            print('Timing each var_chooser (each might not find solution):')
+            first = False
 
         print(f'{chooser.__name__:20}',
               f'{timeit.timeit(prob_inst.get_solution, number=1):10}')
@@ -96,47 +149,23 @@ def run_the_choosers(cargs, build):
 def run_the_solvers(cargs, build):
     """Run all the sovlers, timing them."""
 
+    # classes not loaded until needed
     if not SOLVERS:
         load_class_lists()
 
-    print('Timing each solver (each might not find solution):')
+    first = True
     for slvr in SOLVERS.values():
 
-        prob_inst = problem.Problem(slvr)
-
-        if cargs.forward:
-            prob_inst.enable_forward_check()
-
-        build(prob_inst)
+        prob_inst = build_the_problem(cargs, build)
+        prob_inst.solver = slvr
+        set_forward(cargs, prob_inst)
+        if first:
+            print_prob_desc(cargs, build, prob_inst)
+            print('Timing each solver (each might not find solution):')
+            first = False
 
         print(f'{slvr.__class__.__name__:25}',
               f'{timeit.timeit(prob_inst.get_solution, number=1):10}')
-
-
-def build_the_problem(cargs, build):
-    """Build the problem. Change the sovler and var_chooser if the args
-    specified."""
-
-    if not SOLVERS:
-        load_class_lists()
-
-    prob_inst = problem.Problem()
-
-    build(prob_inst)
-
-    if cargs.solver != KEEP:
-        prob_inst.solver = SOLVERS[cargs.solver]
-
-    if cargs.var_chooser != KEEP:
-        prob_inst.var_chooser = VAR_CHOOSERS[cargs.var_chooser]
-
-    if cargs.arc_consist != KEEP:
-        prob_inst.arc_con = ARC_CONSIST[cargs.arc_consist]
-
-    if cargs.forward:
-        prob_inst.enable_forward_check()
-
-    return prob_inst
 
 
 def solve_the_problem(cargs, prob_inst):
@@ -199,12 +228,7 @@ def solve_it(cargs, build, bindex, show_solution):
         return
 
     prob_inst = build_the_problem(cargs, build)
-
-    print('Build:', build.__name__)
-    print('Solver:', prob_inst.solver_name())
-    print('Chooser:', prob_inst.var_chooser_name())
-    print('Arc Consist:', prob_inst.arc_con_name())
-    print('Forward check:', 'On' if prob_inst.forward_check else 'Off')
+    print_prob_desc(cargs, build, prob_inst)
 
     if cargs.timer == PROFILE:
         cProfile.runctx('solve_the_problem(cargs, prob_inst)',
@@ -305,9 +329,11 @@ def define_parser(nbr_builds):
                         'none' to disable the arc consistency check.
                         Default: %(default)s""")
 
-    parser.add_argument('--forward', action='store_true',
-                        help="""Enable forward checking. If not specified,
-                        does not change from the build function.""")
+    parser.add_argument('--forward', action='store',
+                        choices=FORWARDS, default=KEEP,
+                        help="""Enable the forward checking with 'true';
+                        disable with 'false'. Use as built with 'keep'.
+                        Default: %(default)s""")
 
     parser.add_argument('--timer', action='store',
                         choices=TIMERS, default='none',
@@ -379,13 +405,15 @@ def parse_args(nbr_builds):
         print("Var chooser isn't used with MinConflictSolver.")
         cargs.var_chooser = KEEP
 
-    if (not cargs.forward
+    if (cargs.forward == FALSE
             and cargs.arc_consist != KEEP
             and ARC_CONSIST[cargs.arc_consist]):
         print("Arc Consistency behavior is not well defined without --forward.")
 
-    all_count = [cargs.all_builds, cargs.var_chooser == ALL,
-                 cargs.solver == ALL, cargs.all].count(True)
+    all_count = [cargs.all_builds,
+                 cargs.var_chooser == ALL,
+                 cargs.solver == ALL,
+                 cargs.all].count(True)
     if all_count > 1:
         print("Only one ALL type option may be selected.")
         sys.exit()
