@@ -97,6 +97,7 @@ class EGrid(enum.Flag):
 
 
     if not __debug__:
+
         def __contains__(self, other):
             """Returns True if self has at least the same flags set as other.
             We don't need no stinking type checking!!!"""
@@ -400,6 +401,108 @@ class BBoatConstraint(cnstr.Constraint):
                 self.extra.grid[x][y] |= EGrid.REDUCED
 
 
+    def check_the_sum(self, sidx, usum, orient, assignments):
+        """For a given row (orient = HORZ) or a column (orient = VERT)
+        adjust the grid based on assigned boats and the unit sum (usum).
+
+        Algorithm:
+            1. count the occupied cells
+               and collect the open cells' coordinates
+            2. if the occupied cells equals the unit sum,
+               fill the collected open cells with water
+            3. if open cells plus the occupied cells
+               (not water cells) equals the unit sum,
+               mark all open cells as unidentified
+               boat parts.
+
+        sidx is the index of the row or column being
+             check (static index; vidx is variable index)
+
+        Call only from forward_check.
+
+        Return False as soon as we know the row/sum constraint
+        cannot be met, otherwise return True.
+        """
+
+        open_cells = set()
+        cur_sum = 0
+
+        for vidx in range(1, bboat.SIZE_P1):
+
+            x, y = (vidx, sidx) if orient == bboat.VERT else (sidx, vidx)
+            cell_val = self.extra.grid[x][y]
+
+            if not cell_val:
+                open_cells |= {(x, y)}
+
+            elif EGrid.BOAT_PART in cell_val:
+                cur_sum += 1
+
+            if cur_sum > usum:
+                return False
+
+        if cur_sum == usum:
+            for x, y in open_cells:
+                if not self.extra.assign_grid(x, y, EGrid.WATER):
+                    return False
+
+            unassigned = [vobj for vobj in self._vobjs
+                          if vobj.name not in assignments]
+            return bboat.empty_cells(open_cells,
+                                     unassigned,
+                                     variable.Variable.hide)
+
+        if cur_sum + len(open_cells) == usum:
+            for x, y in open_cells:
+                if not self.extra.assign_grid(x, y, EGrid.BOAT_PART):
+                    return False
+
+        return True
+
+
+    def boat_scan(self, sidx, orient, assignments):
+        """Scan for boats in either a row (orient = HORZ)
+        or a column (orient = VERT). This is done but
+        find runs of unreduced and unassigned boat_parts.
+
+        Cannot place subs here because a run of 1
+        could be a crossing boat.
+
+        sidx is the index of the row or column being
+             scanned (static index)
+
+        Call only from forward_check.
+
+        Return False as soon as we know the row/sum constraint
+        cannot be met, otherwise return True.
+        """
+
+        blen = 0
+        bstart = None
+        for vidx in range(1, bboat.SIZE_P1):
+
+            x, y = (vidx, sidx) if orient == bboat.VERT else (sidx, vidx)
+            cell_val = self.extra.grid[x][y]
+
+            if (EGrid.BOAT_PART in cell_val
+                    and EGrid.REDUCED not in cell_val
+                    and EGrid.ASSIGNED not in cell_val):
+                if not blen:
+                    bstart = (x, y, orient)
+                blen += 1
+
+            elif blen > 1:
+                if not self.reduce_to(bstart, blen, HIDE_FUNC, assignments):
+                    return False
+                self.set_reduced(bstart, blen)
+                blen = 0
+
+            else:
+                blen = 0
+
+        return True
+
+
 class PropagateBBoat(BBoatConstraint):
     """Propagate what we know about the bboat grid.
     Extra_data cannot adjust variable domains,
@@ -468,62 +571,14 @@ class RowSum(BBoatConstraint, bboat_cnstr.RowSum):
         If the row sum and empty sum equals required sum, put generic
         boat parts in the grid.
 
-        Return - False if any domain has been eliminated, True otherwise."""
+        Return - False if any domain has been eliminated or the
+        constraint can't be met, True otherwise."""
 
-        open_cells = set()
-        cur_sum = 0
+        if not self.check_the_sum(self._row, self._row_sum,
+                                  bboat.HORZ, assignments):
+            return False
 
-        for y in range(1, bboat.SIZE_P1):
-
-            cell_val = self.extra.grid[self._row][y]
-
-            if not cell_val:
-                open_cells |= {(self._row, y)}
-
-            elif EGrid.BOAT_PART in cell_val:
-                cur_sum += 1
-
-            if cur_sum > self._row_sum:
-                return False
-
-        if cur_sum == self._row_sum:
-
-            for x, y in open_cells:
-                if not self.extra.assign_grid(x, y, EGrid.WATER):
-                    return False
-
-            unassigned= [vobj for vobj in self._vobjs
-                          if vobj.name not in assignments]
-            return bboat.empty_cells(open_cells,
-                                     unassigned,
-                                     variable.Variable.hide)
-
-        if cur_sum + len(open_cells) == self._row_sum:
-            for x, y in open_cells:
-                if not self.extra.assign_grid(x, y, EGrid.BOAT_PART):
-                    return False
-
-        # scan for known boat locations
-        #  cannot place subs here because a run of 1 could be a crossing boat
-        blen = 0
-        bstart = None
-        for y in range(1, bboat.SIZE_P1):
-            cell_val = self.extra.grid[self._row][y]
-            if (EGrid.BOAT_PART in cell_val
-                    and EGrid.REDUCED not in cell_val
-                    and EGrid.ASSIGNED not in cell_val):
-                if not blen:
-                    bstart = (self._row, y, bboat.HORZ)
-                blen += 1
-            elif blen > 1:
-                if not self.reduce_to(bstart, blen, HIDE_FUNC, assignments):
-                    return False
-                self.set_reduced(bstart, blen)
-                blen = 0
-            else:
-                blen = 0
-
-        return True
+        return self.boat_scan(self._row, bboat.HORZ, assignments)
 
 
 class ColSum(BBoatConstraint, bboat_cnstr.ColSum):
@@ -562,62 +617,14 @@ class ColSum(BBoatConstraint, bboat_cnstr.ColSum):
         If the col sum and empty sum equals required sum, put generic
         boat parts in the grid.
 
-        Return - False if any domain has been eliminated, True otherwise."""
+        Return - False if any domain has been eliminated or the
+        constraint can't be met, True otherwise."""
 
-        open_cells = set()
-        cur_sum = 0
+        if not self.check_the_sum(self._col, self._col_sum,
+                                  bboat.VERT, assignments):
+            return False
 
-        for x in range(1, bboat.SIZE_P1):
-
-            cell_val = self.extra.grid[x][self._col]
-
-            if not cell_val:
-                open_cells |= {(x, self._col)}
-
-            elif EGrid.BOAT_PART in cell_val:
-                cur_sum += 1
-
-            if cur_sum > self._col_sum:
-                return False
-
-        if cur_sum == self._col_sum:
-            for x, y in open_cells:
-                if not self.extra.assign_grid(x, y, EGrid.WATER):
-                    return False
-
-            unassigned = [vobj for vobj in self._vobjs
-                          if vobj.name not in assignments]
-            return bboat.empty_cells(open_cells,
-                                     unassigned,
-                                     variable.Variable.hide)
-
-        if cur_sum + len(open_cells) == self._col_sum:
-            for x, y in open_cells:
-                if not self.extra.assign_grid(x, y, EGrid.BOAT_PART):
-                    return False
-
-        # scan for known boat locations
-        #  cannot place subs here because a run of 1 could be a crossing boat
-        blen = 0
-        bstart = None
-        for x in range(1, bboat.SIZE_P1):
-            cell_val = self.extra.grid[x][self._col]
-
-            if (EGrid.BOAT_PART in cell_val
-                    and EGrid.REDUCED not in cell_val
-                    and EGrid.ASSIGNED not in cell_val):
-                if not blen:
-                    bstart = (x, self._col, bboat.VERT)
-                blen += 1
-            elif blen > 1:
-                if not self.reduce_to(bstart, blen, HIDE_FUNC, assignments):
-                    return False
-                self.set_reduced(bstart, blen)
-                blen = 0
-            else:
-                blen = 0
-
-        return True
+        return self.boat_scan(self._col, bboat.VERT, assignments)
 
 
 class CellEmpty(BBoatConstraint, bboat_cnstr.CellEmpty):
