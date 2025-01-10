@@ -32,9 +32,8 @@ SKIPPED = 'skipped'
 REASON = 'reason'
 
 runs_slow = ['bboat_grid',
-             # this don't work:  'bboat_extra',
-            'master_mind_5',
-            'master_mind_6']
+             'master_mind_5',
+             'master_mind_6']
 
 
 def get_examples():

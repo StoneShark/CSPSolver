@@ -6,6 +6,7 @@ Created on Fri May  5 03:40:16 2023
 
 # %% imports
 
+import collections
 import functools as ft
 import json
 import os
@@ -61,12 +62,23 @@ CONT_ORIENT = (VERT, HORZ, VERT, HORZ)
 
 # %%  grid and boat helper functions
 
+
+def starts_using(x, y, blen):
+    """Return a set of domain values that use x, y when boat
+    length is blen"""
+
+    cells =  {(row, y, VERT) for row in range(max(1, y - blen + 1), y + 1)}
+    if blen > 1:
+        cells |= {(x, col, HORZ) for col in range(max(1, x - blen + 1), x + 1)}
+
+    return cells
+
+
 def cont_pos(loc, direction):
     """Return the grid loc for the continue position of a
     boat end at loc in direction."""
 
-    return tuple(a + b for a, b in zip(loc,
-                                       CONT_INCS[direction]))
+    return tuple(a + b for a, b in zip(loc, CONT_INCS[direction]))
 
 
 def assign_loc(x1, y1, x2, y2):
@@ -84,30 +96,30 @@ def grid_diags(x, y):
     """Return the cells diagonal to x, y.
     Can ignore edges if this is used in empty_cells,
     because it checks if actual boat locations are in this
-    list."""
+    set."""
 
-    return [(x - 1, y - 1), (x - 1, y + 1),
-            (x + 1, y - 1), (x + 1, y + 1)]
+    return {(x - 1, y - 1), (x - 1, y + 1),
+            (x + 1, y - 1), (x + 1, y + 1)}
 
 
 def grid_cross(x, y):
     """Return the neighbors in the same row/col as x, y.
     Can ignore edges if this is used in empty_cells,
     because it checks if actual boat locations are in this
-    list."""
+    set."""
 
-    return [(x, y - 1), (x, y + 1), (x + 1, y), (x - 1, y)]
+    return {(x, y - 1), (x, y + 1), (x + 1, y), (x - 1, y)}
 
 
 def grid_neighs(x, y):
     """Return the cells that are neighbors to x, y.
     Can ignore edges if this is used in empty_cells,
     because it checks if actual boat locations are in this
-    list."""
+    set."""
 
-    return [(x - 1, y - 1), (x - 1, y), (x - 1, y + 1),
+    return {(x - 1, y - 1), (x - 1, y), (x - 1, y + 1),
             (x, y - 1), (x, y + 1),
-            (x + 1, y - 1), (x + 1, y), (x + 1, y + 1)]
+            (x + 1, y - 1), (x + 1, y), (x + 1, y + 1)}
 
 
 @ft.lru_cache(maxsize=64)
@@ -124,30 +136,30 @@ def get_end_loc(x, y, orient, boat_len):
 
 @ft.lru_cache(maxsize=64)
 def grids_occed(x, y, orient, boat_len):
-    """return a list of the cells occupied by boat."""
+    """Return the set of the cells occupied by boat."""
 
-    cells = [(x, y)]
+    cells = {(x, y)}
 
     if boat_len == 1:
         return cells
 
     if orient == VERT:
         for nx in range(x + 1, x + boat_len):
-            cells += [(nx, y)]
+            cells |= {(nx, y)}
 
     else:
         for ny in range(y + 1, y + boat_len):
-            cells += [(x, ny)]
+            cells |= {(x, ny)}
 
     return cells
 
 
 @ft.lru_cache(maxsize=64)
 def grids_bounding(x, y, orient, boat_len):
-    """Return a set of the cells around the boat,
+    """Return the set of the cells around the boat,
     but not the cells of the boat itself."""
 
-    cells = []
+    cells = set()
 
     if orient == VERT:
         xend = x + boat_len - 1
@@ -163,23 +175,23 @@ def grids_bounding(x, y, orient, boat_len):
     bnd_lr = (min(10, box_lr[0]), min(10, box_lr[1]))
 
     if 1 <= box_ul[1] <= SIZE:   # top
-        cells += [(nx, box_ul[1]) for nx in range(bnd_ul[0], bnd_lr[0] + 1)]
+        cells |= {(nx, box_ul[1]) for nx in range(bnd_ul[0], bnd_lr[0] + 1)}
 
     if 1 <= box_lr[1] <= SIZE:   # bottom
-        cells += [(nx, box_lr[1]) for nx in range(bnd_ul[0], bnd_lr[0] + 1)]
+        cells |= {(nx, box_lr[1]) for nx in range(bnd_ul[0], bnd_lr[0] + 1)}
 
     if 1 <= box_ul[0] <= SIZE:   # left side
-        cells += [(box_ul[0], ny) for ny in range(bnd_ul[1], bnd_lr[1] + 1)]
+        cells |= {(box_ul[0], ny) for ny in range(bnd_ul[1], bnd_lr[1] + 1)}
 
     if 1 <= box_lr[0] <= SIZE:   # right side
-        cells += [(box_lr[0], ny) for ny in range(bnd_ul[1], bnd_lr[1] + 1)]
+        cells |= {(box_lr[0], ny) for ny in range(bnd_ul[1], bnd_lr[1] + 1)}
 
-    return set(cells)
+    return cells
 
 
 @ft.lru_cache(maxsize=64)
 def grids_mid(x, y, orient, boat_len):
-    """Return a list of the mid parts occupied by boat."""
+    """Return a set of the mid parts occupied by boat."""
 
     if boat_len <= 2:
         return None
@@ -187,10 +199,10 @@ def grids_mid(x, y, orient, boat_len):
     dx, dy = INCS[orient]
 
     if boat_len == 3:
-        return [(x + dx, y + dy)]
+        return {(x + dx, y + dy)}
 
     if boat_len == 4:
-        return [(x + dx, y + dy), (x + 2 * dx, y + 2 * dy)]
+        return {(x + dx, y + dy), (x + 2 * dx, y + 2 * dy)}
 
     return None
 
@@ -240,16 +252,16 @@ def grids_bound_mid(x, y):
     cells = None
 
     if x == 1:
-        cells = [(x + 1, y + dy) for dy in range(-2, 3)]
+        cells = {(x + 1, y + dy) for dy in range(-2, 3)}
 
     elif x == SIZE:
-        cells = [(x - 1, y + dy) for dy in range(-2, 3)]
+        cells = {(x - 1, y + dy) for dy in range(-2, 3)}
 
     elif y == 1:
-        cells = [(x + dx, y + 1) for dx in range(-2, 3)]
+        cells = {(x + dx, y + 1) for dx in range(-2, 3)}
 
     elif x == SIZE:
-        cells = [(x + dx, y - 1) for dx in range(-2, 3)]
+        cells = {(x + dx, y - 1) for dx in range(-2, 3)}
 
     else:
         cells = grid_diags(x, y)
@@ -301,9 +313,9 @@ def pos_locs(boat_len):
 
 # %%  prop empty cells
 
-def empty_cells(empty_list, vobjs_list, func):
+def empty_cells(empty_set, vobjs_list, func):
     """Remove/Hide any domain values (start locations) that
-    would include any location in the empty_list.
+    would include any location in the empty_set.
 
     Call with func as one of:
       variable.Variable.remove_dom_val for preprocessor
@@ -311,6 +323,7 @@ def empty_cells(empty_list, vobjs_list, func):
 
     This does not collect a list of changed variables
     because it is significantly slower.
+    Could be different with new implementation.
 
     Return False if overconstrainted (e.g. any domain is emptied),
     True otherwise.  Forward check can return the return value.
@@ -318,20 +331,22 @@ def empty_cells(empty_list, vobjs_list, func):
 
     for bobj in vobjs_list:
         blength = BOAT_LENGTH[bobj.name]
+        change = collections.deque()
 
-        for value in bobj.get_domain()[:]:
+        for value in bobj.get_domain():
             x, y, orient = value
 
-            if (x, y) in empty_list:
-                if not func(bobj, value):
-                    return False
+            if (x, y) in empty_set:
+                change.append(value)
                 continue
 
             needed = grids_occed(x, y, orient, blength)
+            if empty_set & needed:
+                change.append(value)
 
-            if any(coord in empty_list for coord in needed):
-                if not func(bobj, value):
-                    return False
+        for value in change:
+            if not func(bobj, value):
+                return False
 
     return True
 
@@ -421,8 +436,12 @@ def print_grid(solution, _=None):
     for ridx, row in enumerate(grid):
         print(f'{ridx+1:2}', ''.join(row))
     print()
-    print(solution)
+    for var, val in sorted(solution.items()):
+        if var in ('cruiser1', 'destroyer1', 'sub1'):
+            print()
+        print(var, val, end=', ')
     print()
+
 
 # %%   main
 

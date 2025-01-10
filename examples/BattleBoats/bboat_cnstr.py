@@ -46,7 +46,6 @@ from csp_solver import var_chooser
 from csp_solver import variable
 
 
-
 # %% constraints
 
 class BoatBoundaries(cnstr.Constraint):
@@ -85,17 +84,17 @@ class BoatBoundaries(cnstr.Constraint):
         """Hide all domain values that are in boat boundaries
         or already occupied."""
 
-        hide_list = set()
+        hide_set = set()
         for bname, (x, y, orient) in assignments.items():
             length = bboat.BOAT_LENGTH[bname]
 
-            hide_list |= set(bboat.grids_occed(x, y, orient, length))
-            hide_list |= bboat.grids_bounding(x, y, orient, length)
+            hide_set |= set(bboat.grids_occed(x, y, orient, length))
+            hide_set |= bboat.grids_bounding(x, y, orient, length)
 
         unassigned= [vobj for vobj in self._vobjs
                      if vobj.name not in assignments]
 
-        return bboat.empty_cells(hide_list, unassigned, variable.Variable.hide)
+        return bboat.empty_cells(hide_set, unassigned, variable.Variable.hide)
 
 
 class IncOrder(cnstr.OneOrder):
@@ -205,7 +204,7 @@ class RowSum(cnstr.Constraint):
                (ie. horizontal boats)"""
 
         if not self._row_sum:
-            row_coords = [(self._row, y) for y in range(1, bboat.SIZE_P1)]
+            row_coords = {(self._row, y) for y in range(1, bboat.SIZE_P1)}
             if not bboat.empty_cells(row_coords, self._vobjs,
                                      variable.Variable.remove_dom_val):
                 raise cnstr.PreprocessorConflict(str(self))
@@ -254,8 +253,8 @@ class RowSum(cnstr.Constraint):
         if cur_sum < self._row_sum:
             return True
 
-        empty_cols = [(self._row, y)
-                      for y in range(1, bboat.SIZE_P1) if not occed_cols[y]]
+        empty_cols = {(self._row, y)
+                      for y in range(1, bboat.SIZE_P1) if not occed_cols[y]}
         unassigned= [vobj for vobj in self._vobjs
                       if vobj.name not in assignments]
 
@@ -313,7 +312,7 @@ class ColSum(cnstr.Constraint):
                (ie. bboat.VERTical boats)"""
 
         if not self._col_sum:
-            col_coords = [(x, self._col) for x in range(1, bboat.SIZE_P1)]
+            col_coords = {(x, self._col) for x in range(1, bboat.SIZE_P1)}
             if not bboat.empty_cells(col_coords, self._vobjs,
                                      variable.Variable.remove_dom_val):
                 raise cnstr.PreprocessorConflict(str(self))
@@ -362,8 +361,8 @@ class ColSum(cnstr.Constraint):
         if cur_sum < self._col_sum:
             return True
 
-        empty_rows = [(x, self._col)
-                      for x in range(1, bboat.SIZE_P1) if not occed_rows[x]]
+        empty_rows = {(x, self._col)
+                      for x in range(1, bboat.SIZE_P1) if not occed_rows[x]}
         unassigned= [vobj for vobj in self._vobjs
                       if vobj.name not in assignments]
 
@@ -405,7 +404,7 @@ class CellEmpty(cnstr.Constraint):
         but call _test_over_satis to make certain it is not over
         contsrainted (it will raise exception)."""
 
-        if not bboat.empty_cells([self._loc], self._vobjs,
+        if not bboat.empty_cells({self._loc}, self._vobjs,
                                  variable.Variable.remove_dom_val):
             raise cnstr.PreprocessorConflict(str(self))
 
@@ -522,7 +521,7 @@ class BoatEnd(cnstr.Constraint):
             length = bboat.BOAT_LENGTH[bobj.name]
 
             if length == 1:
-                if not bboat.remove_starts(bobj, neighs + [self._loc]):
+                if not bboat.remove_starts(bobj, neighs | {self._loc}):
                     raise cnstr.PreprocessorConflict(str(self))
                 continue
 
@@ -534,7 +533,7 @@ class BoatEnd(cnstr.Constraint):
                 continue
 
             # length > 2
-            if not bboat.remove_starts_ends(bobj, [cont_pos]):
+            if not bboat.remove_starts_ends(bobj, {cont_pos}):
                 raise cnstr.PreprocessorConflict(str(self))
 
             for value in bobj.get_domain()[:]:
@@ -618,15 +617,15 @@ class BoatMid(cnstr.Constraint):
             length = bboat.BOAT_LENGTH[bobj.name]
 
             if length == 1:
-                if not bboat.remove_starts(bobj, neighs + [self._loc]):
+                if not bboat.remove_starts(bobj, neighs | {self._loc}):
                     raise cnstr.PreprocessorConflict(str(self))
 
             elif length == 2:
-                if not bboat.remove_starts_ends(bobj, neighs + [self._loc]):
+                if not bboat.remove_starts_ends(bobj, neighs | {self._loc}):
                     raise cnstr.PreprocessorConflict(str(self))
 
             else:
-                if not bboat.remove_starts_ends(bobj, [self._loc]):
+                if not bboat.remove_starts_ends(bobj, {self._loc}):
                     raise cnstr.PreprocessorConflict(str(self))
 
         return False
@@ -690,7 +689,7 @@ class BoatSub(cnstr.Constraint):
         that the constraint is fully processed."""
 
         not_placed = True
-        empties = bboat.grid_neighs(*self._loc) + [self._loc]
+        empties = bboat.grid_neighs(*self._loc) | {self._loc}
 
         for bobj in self._vobjs:
             length = bboat.BOAT_LENGTH[bobj.name]
@@ -816,18 +815,19 @@ def build_puzzle(filename):
     """Return a function that can build boat a problem
     based on an input file."""
 
+    # print(f"Reading {filename}")
     pairs = bboat.read_puzzle(bboat.PUZ_PATH + filename)
     if not pairs:
         return None
-
-    cons = build_cons(pairs, BOAT_CNSTR)
 
     def build_func(boatprob):
         """place holder"""
 
         add_basic(boatprob, BoatBoundaries)
-        for con in cons:
+
+        for con in build_cons(pairs, BOAT_CNSTR):
             boatprob.add_constraint(con, bboat.BOATS)
+
         add_final(boatprob)
 
     build_func.__name__ = f'build_puzzle("{filename}")'
@@ -859,7 +859,7 @@ builds = build_all_puzzles()
 if __name__ == '__main__':
 
     experimenter.do_stuff(builds, bboat.print_grid)
-
+    # bboat.cache_info()
 
 if __name__ == '__test_example__':
 

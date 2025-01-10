@@ -35,7 +35,6 @@ Created on Fri May  5 03:40:16 2023
 # %% imports
 
 import collections
-import copy
 import enum
 
 import os
@@ -97,6 +96,18 @@ class EGrid(enum.Flag):
     MID = _MID | BOAT_PART
 
 
+    if not __debug__:
+        def __contains__(self, other):
+            """Returns True if self has at least the same flags set as other.
+            We don't need no stinking type checking!!!"""
+            return other._value_ & self._value_ == other._value_
+
+        def _get_value(self, flag):
+            """Return the value.
+            We don't need no stinking type checking!!!"""
+            return flag._value_
+
+
     def ok_to_assign(self, what):
         """Is it ok to assign a boat part:
             1. have no value
@@ -112,22 +123,10 @@ class EGrid(enum.Flag):
                     and EGrid.BOAT_PART in what))
 
 
-    def is_boat_part(self):
-        """Return True if self if a boat part"""
-
-        return EGrid.BOAT_PART in self
-
-
     def no_new_parts(self):
         """Return True if a new part must not be assigned."""
 
         return EGrid.WATER in self or EGrid.ASSIGNED in self
-
-
-    def is_marked_empty(self):
-        """Water flag should be set."""
-
-        return EGrid.WATER in self
 
 
     def char(self):
@@ -309,7 +308,7 @@ class BBExtra(extra_data.ExtraDataIF):
             self.pop()
 
         length = bboat.BOAT_LENGTH[vname]
-        temp_grid = copy.deepcopy(self.grid)
+        temp_grid = [row.copy() for row in self.grid]
 
         if not self.place_boat(temp_grid, val, length, flags=EGrid.ASSIGNED):
             return False
@@ -419,14 +418,14 @@ class PropagateBBoat(BBoatConstraint):
 
         # TODO expand PropagateBBoat
 
-        hide_list = [(x, y) for x in range(1, bboat.SIZE_P1)
-                      for y in range(1, bboat.SIZE_P1)
-                      if self.extra.grid[x][y].no_new_parts()]
+        hide_set = {(x, y) for x in range(1, bboat.SIZE_P1)
+                    for y in range(1, bboat.SIZE_P1)
+                    if self.extra.grid[x][y].no_new_parts()}
 
         unassigned= [vobj for vobj in self._vobjs
                       if vobj.name not in assignments]
 
-        rval = bboat.empty_cells(hide_list,
+        rval = bboat.empty_cells(hide_set,
                                  unassigned,
                                  variable.Variable.hide)
 
@@ -441,7 +440,7 @@ class RowSum(BBoatConstraint, bboat_cnstr.RowSum):
         """Test the constraint."""
 
         cur_sum = sum(1 for part in self.extra.grid[self._row]
-                      if part.is_boat_part())
+                      if EGrid.BOAT_PART in part)
 
         if len(boat_dict) == bboat.B_CNT:
             return cur_sum == self._row_sum
@@ -471,7 +470,7 @@ class RowSum(BBoatConstraint, bboat_cnstr.RowSum):
 
         Return - False if any domain has been eliminated, True otherwise."""
 
-        open_cells = []
+        open_cells = set()
         cur_sum = 0
 
         for y in range(1, bboat.SIZE_P1):
@@ -479,9 +478,9 @@ class RowSum(BBoatConstraint, bboat_cnstr.RowSum):
             cell_val = self.extra.grid[self._row][y]
 
             if not cell_val:
-                open_cells += [(self._row, y)]
+                open_cells |= {(self._row, y)}
 
-            elif cell_val.is_boat_part():
+            elif EGrid.BOAT_PART in cell_val:
                 cur_sum += 1
 
             if cur_sum > self._row_sum:
@@ -510,7 +509,9 @@ class RowSum(BBoatConstraint, bboat_cnstr.RowSum):
         bstart = None
         for y in range(1, bboat.SIZE_P1):
             cell_val = self.extra.grid[self._row][y]
-            if EGrid.BOAT_PART in cell_val and EGrid.ASSIGNED not in cell_val:
+            if (EGrid.BOAT_PART in cell_val
+                    and EGrid.REDUCED not in cell_val
+                    and EGrid.ASSIGNED not in cell_val):
                 if not blen:
                     bstart = (self._row, y, bboat.HORZ)
                 blen += 1
@@ -518,6 +519,8 @@ class RowSum(BBoatConstraint, bboat_cnstr.RowSum):
                 if not self.reduce_to(bstart, blen, HIDE_FUNC, assignments):
                     return False
                 self.set_reduced(bstart, blen)
+                blen = 0
+            else:
                 blen = 0
 
         return True
@@ -531,7 +534,7 @@ class ColSum(BBoatConstraint, bboat_cnstr.ColSum):
         """Test the constraint."""
 
         cur_sum = sum(1 for x in range(1, bboat.SIZE_P1)
-                      if self.extra.grid[x][self._col].is_boat_part())
+                      if EGrid.BOAT_PART in self.extra.grid[x][self._col])
 
         if len(boat_dict) == bboat.B_CNT:
             return cur_sum == self._col_sum
@@ -561,7 +564,7 @@ class ColSum(BBoatConstraint, bboat_cnstr.ColSum):
 
         Return - False if any domain has been eliminated, True otherwise."""
 
-        open_cells = []
+        open_cells = set()
         cur_sum = 0
 
         for x in range(1, bboat.SIZE_P1):
@@ -569,9 +572,9 @@ class ColSum(BBoatConstraint, bboat_cnstr.ColSum):
             cell_val = self.extra.grid[x][self._col]
 
             if not cell_val:
-                open_cells += [(x, self._col)]
+                open_cells |= {(x, self._col)}
 
-            elif cell_val.is_boat_part():
+            elif EGrid.BOAT_PART in cell_val:
                 cur_sum += 1
 
             if cur_sum > self._col_sum:
@@ -600,7 +603,9 @@ class ColSum(BBoatConstraint, bboat_cnstr.ColSum):
         for x in range(1, bboat.SIZE_P1):
             cell_val = self.extra.grid[x][self._col]
 
-            if EGrid.BOAT_PART in cell_val and EGrid.ASSIGNED not in cell_val:
+            if (EGrid.BOAT_PART in cell_val
+                    and EGrid.REDUCED not in cell_val
+                    and EGrid.ASSIGNED not in cell_val):
                 if not blen:
                     bstart = (x, self._col, bboat.VERT)
                 blen += 1
@@ -608,6 +613,8 @@ class ColSum(BBoatConstraint, bboat_cnstr.ColSum):
                 if not self.reduce_to(bstart, blen, HIDE_FUNC, assignments):
                     return False
                 self.set_reduced(bstart, blen)
+                blen = 0
+            else:
                 blen = 0
 
         return True
@@ -799,7 +806,6 @@ class BoatEnd(BBoatConstraint, bboat_cnstr.BoatEnd):
 
         return rval
 
-
 class BoatMid(BBoatConstraint, bboat_cnstr.BoatMid):
     """A boat mid part must be at (row, col).
 
@@ -852,7 +858,9 @@ class BoatSub(BBoatConstraint, bboat_cnstr.BoatSub):
         super().preprocess()
 
         for x, y in bboat.grid_neighs(*self._loc):
-            if not self.extra.assign_grid(x, y, EGrid.WATER):
+            if (0 < x < bboat.SIZE_P1
+                    and 0 < y < bboat.SIZE_P1
+                    and not self.extra.assign_grid(x, y, EGrid.WATER)):
                 raise cnstr.PreprocessorConflict(str(self))
 
         if not self.extra.assign_grid(*self._loc, EGrid.ROUND):
@@ -893,15 +901,13 @@ def build_puzzle(filename):
     if not row_sums_value or not col_sums_value:
         raise cnstr.ConstraintError("Row and Col sums are required")
 
-    cons = bboat_cnstr.build_cons(pairs, BOAT_CNSTR)
-
     doc_str = filename + ':  \n' \
                 + '\n'.join(str(c) + '=' + str(v) for c, v in pairs)
 
     def build_func(boatprob):
         """place holder
         vars from outer scope used:
-            row_sums_value, col_sums_value, cons,
+            row_sums_value, col_sums_value, pairs,
             filename and doc_str"""
 
         bboat_cnstr.add_basic(boatprob, PropagateBBoat)
@@ -910,6 +916,7 @@ def build_puzzle(filename):
         boatprob.extra_data.row_sums = row_sums_value
         boatprob.extra_data.col_sums = col_sums_value
 
+        cons = bboat_cnstr.build_cons(pairs, BOAT_CNSTR)
         for con in cons:
             boatprob.add_constraint(con, bboat.BOATS)
         for con in boatprob.pspec.constraints:
@@ -968,14 +975,17 @@ if __name__ == '__test_example__':
         bboat.print_grid(sol)
 
 
-
-# build = build_puzzle("test_mid_pre.txt")
+# build = build_puzzle("commodore_aug2021.txt")
 
 # bprob = problem.Problem()
 # build(bprob)
 
 # bprob._spec.prepare_variables()
 # bprob.print_domains()
+
+# print()
+# for name, vobj in bprob.pspec.variables.items():
+#     print(name, len(vobj.get_domain()))
 
 # sol = bprob.get_all_solutions()
 # bboat.print_grid(sol[0])
