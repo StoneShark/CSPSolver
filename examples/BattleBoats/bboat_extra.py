@@ -112,8 +112,10 @@ class EGrid(enum.Flag):
     def ok_to_assign(self, what):
         """Is it ok to assign a boat part:
             1. have no value
-            2. are an unassigned boat part that matches what
-            3. are a unidentified boat part"""
+            2. a domain has been reduced for this location for
+               future assignment (i.e. now)
+            3. are an unassigned boat part that matches what
+            4. are a unidentified boat part"""
 
         return (not self
                 or EGrid.REDUCED in self
@@ -263,7 +265,7 @@ class BBExtra(extra_data.ExtraDataIF):
 
     @staticmethod
     def place_boat(grid, loc, length, flags=EGrid.NONE):
-        """Place the boat.
+        """Place the boat and fill the boundary.
         grid might be self.grid or a temporary grid.
         Return True if placed ok, False otherwise."""
 
@@ -272,6 +274,9 @@ class BBExtra(extra_data.ExtraDataIF):
         if length == 1:
             if not BBExtra.assign_bpart(grid, x, y, EGrid.ROUND, flags=flags):
                 return False
+            for tx, ty in bboat.grids_bounding(x, y, orient, length):
+                if not BBExtra.assign_bpart(grid, tx, ty, EGrid.BOUNDARY):
+                    return False
             return True
 
         dx, dy = bboat.INCS[orient]
@@ -292,6 +297,9 @@ class BBExtra(extra_data.ExtraDataIF):
                                     lr_end, flags=flags):
             return False
 
+        for tx, ty in bboat.grids_bounding(x, y, orient, length):
+            if not BBExtra.assign_bpart(grid, tx, ty, EGrid.BOUNDARY):
+                return False
         return True
 
 
@@ -313,10 +321,6 @@ class BBExtra(extra_data.ExtraDataIF):
 
         if not self.place_boat(temp_grid, val, length, flags=EGrid.ASSIGNED):
             return False
-
-        for x, y in bboat.grids_bounding(*val, length):
-            if not BBExtra.assign_bpart(temp_grid, x, y, EGrid.BOUNDARY):
-                return False
 
         self._queue.append((vname, self.grid))
         self.grid = temp_grid
@@ -727,12 +731,6 @@ class BoatEnd(BBoatConstraint, bboat_cnstr.BoatEnd):
         if not self.extra.place_boat(self.extra.grid, boat_val, boat_len,
                                      flags=EGrid.REDUCED):
             raise cnstr.PreprocessConflict(str(self))
-
-        for x, y in bboat.grids_bounding(*boat_val, boat_len):
-            if not BBExtra.assign_bpart(self.extra.grid,
-                                        x, y, EGrid.BOUNDARY):
-                raise cnstr.PreprocessConflict(str(self))
-
         return True
 
 
@@ -758,6 +756,10 @@ class BoatEnd(BBoatConstraint, bboat_cnstr.BoatEnd):
 
         Return False if a variable is overconstrained,
         otherwise, return True."""
+
+        # TODO this might never run, the preprocessor places
+        # the end and sets an unidentied boat part on the open end; then
+        # RowSum/ColSum will forward_check will place the boat.
 
         x, y = self._loc
 
