@@ -5,6 +5,8 @@
     Row and column sums count the number of boat parts in row/column.
     Partial placement is provided (see constraints below).
 
+https://en.wikipedia.org/wiki/Battleship_(puzzle)
+
 variables are boat types, see bboat.BOAT_LENGTH.keys()
 domains are locations that boats can be placed as tuples: (x, y, orientation)
 

@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 """Support BattleBoats constants and routines.
 
+https://en.wikipedia.org/wiki/Battleship_(puzzle)
+
 Created on Fri May  5 03:40:16 2023
 @author: Ann"""
 

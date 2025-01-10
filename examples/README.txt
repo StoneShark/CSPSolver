@@ -6,12 +6,13 @@ To see the experimenter options:
          python boris.py --help
 
 
-BattleBoats      solutions to the solitary battleship puzzles from
-                 Games magazine. Constraints specific to the puzzle
+BattleBoats      solutions to the solitary battleship puzzles on a 
+                 10x10 grid. Constraints specific to the puzzle type
                  are created by extending csp_solver.constraint.Constraint
                  into 8 new constraint types. A unique variable choosing
                  order is used. Three representations are provided.
                  Extra_data and UniqueSets are demonstrated in bboat_extra.
+                 Example puzzles from Games Magazine included.
 
 boris            an example from the web that was used to explain arc 
                  consistency.
