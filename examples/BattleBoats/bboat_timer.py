@@ -41,6 +41,9 @@ def parse_command_line():
     parser.add_argument('--all', action='store_true',
                         help="""Find all solutions.""")
 
+    parser.add_argument('--progress', action='store_true',
+                        help="""Show progress prints.""")
+
     try:
         cargs = parser.parse_args()
     except argparse.ArgumentError:
@@ -70,7 +73,8 @@ if __name__ == '__main__':
 
     for bnbr, build_func in enumerate(bb_puz_def[:RUN_FIRST]):
 
-        print(f'\n{bnbr + 1} {puz}: ', build_func.__doc__)
+        if cargs.progress:
+            print(f'\n{bnbr + 1} {puz}: ', build_func.__doc__)
 
         for nbr in range(NBR_RUNS_PER):
 
@@ -82,7 +86,8 @@ if __name__ == '__main__':
             time = timeit.timeit(solve_func, number=1)
             total += time
 
-            print(f'Run {nbr}: {time}')
+            if cargs.progress:
+                print(f'Run {nbr}: {time}')
 
     ave_run_time = total / RUN_FIRST / NBR_RUNS_PER
     print(f'\nAverage time per solve {ave_run_time} ({puz})')
