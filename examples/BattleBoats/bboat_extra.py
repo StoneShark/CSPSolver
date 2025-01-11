@@ -27,6 +27,7 @@ Constraints:
                 boat may extend in either direction
     * BoatSub - puzzle specifies a submarine (boat length of 1)
 
+bboat_timer:  0.1482 to 0.1490
 
 Created on Fri May  5 03:40:16 2023
 @author: Ann"""
@@ -36,7 +37,6 @@ Created on Fri May  5 03:40:16 2023
 
 import collections
 import enum
-
 import os
 import sys
 
@@ -94,6 +94,9 @@ class EGrid(enum.Flag):
     END_LFT = _END_LFT | BOAT_PART
     END_RGT = _END_RGT | BOAT_PART
     MID = _MID | BOAT_PART
+
+    ENDS = _END_TOP | _END_BOT | _END_LFT | _END_RGT
+    KNOWN = WATER | _ROUND | _MID | ENDS
 
 
     if not __debug__:
@@ -219,7 +222,7 @@ class BBExtra(extra_data.ExtraDataIF):
                    BBExtra.assign (that does a re-assignment)
                 b. BBExtra.pop."""
 
-        if self.grid[x][y] == what:
+        if (self.grid[x][y] & EGrid.KNOWN) == what:
             return True
 
         if self.grid[x][y].ok_to_assign(what):
@@ -354,10 +357,8 @@ class BBoatConstraint(cnstr.Constraint):
 
     def reduce_to(self, boat_loc, boat_len,
                   func=REMOVE_FUNC,  assignments=None):
-        """Reduce one of the boat domains to boat_loc;
+        """Reduce one boat domain to boat_loc;
         the selected boat must be boat_len long.
-
-        This MUST be called before the grid cells are set to REDUCED!
 
         Call with func as one of:
           variable.Variable.remove_dom_val for preprocessor
@@ -369,40 +370,38 @@ class BBoatConstraint(cnstr.Constraint):
         otherwise return True."""
 
         x, y, _ = boat_loc
+        assert (EGrid.REDUCED | EGrid.ASSIGNED) not in self.extra.grid[x][y]
+        assert EGrid.MID not in self.extra.grid[x][y]
 
         for bobj in self._vobjs:
             length = bboat.BOAT_LENGTH[bobj.name]
 
-            if ((assignments and bobj.name in assignments)
-                    or length != boat_len
-                    or EGrid.REDUCED in self.extra.grid[x][y]
-                    or bobj.nbr_values() <= 1
-                    or boat_loc not in bobj.get_domain()):
-                continue
-            # print(f"{self} reducing domain for {bobj.name} to {boat_loc}")
+            if not ((assignments and bobj.name in assignments)
+                        or length != boat_len
+                        or EGrid.REDUCED in self.extra.grid[x][y]
+                        or bobj.nbr_values() <= 1
+                        or boat_loc not in bobj.get_domain()):
+                # print(f"{self} reducing domain for {bobj.name} to {boat_loc}")
+                break
 
-            for value in bobj.get_domain()[:]:
-                if value == boat_loc:
-                    continue
+        else:
+            # if we can't place a boat, the current assignments wont work
+            return False
 
-                if not func(bobj, value):
-                    return False
-            return True
+        for value in bobj.get_domain()[:]:
+            if value != boat_loc and not func(bobj, value):
+                return False
 
+        self.set_reduced(boat_loc, boat_len)
         return True
 
 
     def set_reduced(self, boat_loc, boat_len):
         """Set the grid cells for a boat of length boat_len
-        at boat_loc to REDUCED. boat_loc is always the
-        upper-left end of the boat.
-
-        This must be done after reduce_to is called."""
+        at boat_loc to REDUCED."""
 
         for x, y in bboat.grids_occed(*boat_loc, boat_len):
-
-            if 0 < x < bboat.SIZE_P1 and 0 < y < bboat.SIZE_P1:
-                self.extra.grid[x][y] |= EGrid.REDUCED
+            self.extra.grid[x][y] |= EGrid.REDUCED
 
 
     def check_the_sum(self, sidx, usum, orient, assignments):
@@ -466,16 +465,16 @@ class BBoatConstraint(cnstr.Constraint):
 
     def boat_scan(self, sidx, orient, assignments):
         """Scan for boats in either a row (orient = HORZ)
-        or a column (orient = VERT). This is done but
-        find runs of unreduced and unassigned boat_parts.
+        or a column (orient = VERT). This is done by
+        finding runs of unreduced and unassigned boat_parts.
 
         Cannot place subs here because a run of 1
         could be a crossing boat.
 
         sidx is the index of the row or column being
-             scanned (static index)
+             scanned (static index, vidx is variable index)
 
-        Call only from forward_check.
+        Call only from forward_check (or rewrite to pass in var op).
 
         Return False as soon as we know the row/sum constraint
         cannot be met, otherwise return True.
@@ -483,26 +482,29 @@ class BBoatConstraint(cnstr.Constraint):
 
         blen = 0
         bstart = None
+        prev = EGrid.WATER
+
         for vidx in range(1, bboat.SIZE_P1):
 
             x, y = (vidx, sidx) if orient == bboat.VERT else (sidx, vidx)
             cell_val = self.extra.grid[x][y]
 
-            if (EGrid.BOAT_PART in cell_val
+            if (EGrid.WATER in prev
+                    and EGrid.BOAT_PART in cell_val
                     and EGrid.REDUCED not in cell_val
                     and EGrid.ASSIGNED not in cell_val):
                 if not blen:
                     bstart = (x, y, orient)
                 blen += 1
 
-            elif blen > 1:
+            elif blen > 1 and (vidx == bboat.SIZE or EGrid.WATER in cell_val):
                 if not self.reduce_to(bstart, blen, HIDE_FUNC, assignments):
                     return False
-                self.set_reduced(bstart, blen)
                 blen = 0
 
             else:
                 blen = 0
+            prev = cell_val
 
         return True
 
@@ -736,13 +738,20 @@ class BoatEnd(BBoatConstraint, bboat_cnstr.BoatEnd):
 
     def preprocess(self):
         """Let the base constraint update the variable domains.
-        Update the grid and see if have a full position."""
+        Update the grid with the known water cells.
+        If base constraint placed a boat, mark it as reduced.
+        Otherwise, scan for another end (or mid) to see if have a
+        known boat location."""
 
-        super().preprocess()
+        rval = super().preprocess()
 
-        rval = False
         empties = bboat.grids_bound_end(*self._loc, self._cont_dir)
         self._update_grid(empties)
+
+        if rval:
+            boat_val = self._check_destroyer()
+            self.set_reduced(boat_val, 2)
+            return True
 
         rval = self._deduce_boat()
 
@@ -758,8 +767,8 @@ class BoatEnd(BBoatConstraint, bboat_cnstr.BoatEnd):
         otherwise, return True."""
 
         # TODO this might never run, the preprocessor places
-        # the end and sets an unidentied boat part on the open end; then
-        # RowSum/ColSum will forward_check will place the boat.
+        # the end and sets an unidentified boat part on the open end;
+        # then RowSum/ColSum will forward_check will place the boat.
 
         x, y = self._loc
 
@@ -789,8 +798,6 @@ class BoatEnd(BBoatConstraint, bboat_cnstr.BoatEnd):
         # print("BoatEnd reducing domain")
         if not self.reduce_to(destroyer_loc, 2, HIDE_FUNC, assignments):
             return False
-        self.extra.grid[x][y] |= EGrid.REDUCED
-        self.extra.grid[cx][cy] |= EGrid.REDUCED
 
         return True
 
@@ -814,6 +821,7 @@ class BoatEnd(BBoatConstraint, bboat_cnstr.BoatEnd):
         rval = self._destroyer_end(assignments)
 
         return rval
+
 
 class BoatMid(BBoatConstraint, bboat_cnstr.BoatMid):
     """A boat mid part must be at (row, col).
@@ -866,14 +874,10 @@ class BoatSub(BBoatConstraint, bboat_cnstr.BoatSub):
 
         super().preprocess()
 
-        for x, y in bboat.grid_neighs(*self._loc):
-            if (0 < x < bboat.SIZE_P1
-                    and 0 < y < bboat.SIZE_P1
-                    and not self.extra.assign_grid(x, y, EGrid.WATER)):
-                raise cnstr.PreprocessorConflict(str(self))
-
-        if not self.extra.assign_grid(*self._loc, EGrid.ROUND):
-            raise cnstr.PreprocessorConflict(str(self))
+        if not self.extra.place_boat(self.extra.grid,
+                                      (*self._loc, bboat.VERT), 1,
+                                      flags=EGrid.REDUCED):
+            raise cnstr.PreprocessConflict(str(self))
 
         return True
 
