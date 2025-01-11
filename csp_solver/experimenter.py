@@ -295,7 +295,7 @@ def define_parser(nbr_builds):
         solution will be shown.
         |n
         Only one 'all' type parameter may be used: --solver all,
-        --var_chooser all, --all, or --all_builds.
+        --var_chooser all, --build all, or --all.
         """,
         formatter_class=MultilineFormatter)
 
@@ -356,11 +356,11 @@ def define_parser(nbr_builds):
                             Default: %(default)s""")
 
     parser.add_argument('--build', action='store',
-                        choices=range(1,nbr_builds+1), default=1,
-                        type=int,
+                        choices=[str(i) for i in range(1,nbr_builds+1)] + [ALL],
+                        default='1',
                         help="""Which of multiple build functions should be run.
                         This option is limited to the number of build functions
-                        provided to the experimenter.
+                        provided to the experimenter. 'all' will run all builds.
                         Default: %(default)s""")
 
     parser.add_argument('--show_n', action='store', default=5,
@@ -368,11 +368,6 @@ def define_parser(nbr_builds):
                         help="""0 will prevent any solution from being
                         printed.  If multiple solutions found, show at
                         most n of them (only if --all or --unique).
-                        Default: %(default)s""")
-
-    parser.add_argument('--all_builds', action='store_true', default=False,
-                        help="""If there are multiple builds supplied
-                        run them all. --build is ignore if this is provided.
                         Default: %(default)s""")
 
     return parser
@@ -410,7 +405,10 @@ def parse_args(nbr_builds):
             and ARC_CONSIST[cargs.arc_consist]):
         print("Arc Consistency behavior is not well defined without --forward.")
 
-    all_count = [cargs.all_builds,
+    if cargs.build == ALL and nbr_builds == 1:
+        cargs.build = '1'
+
+    all_count = [cargs.build == ALL,
                  cargs.var_chooser == ALL,
                  cargs.solver == ALL,
                  cargs.all].count(True)
@@ -452,7 +450,7 @@ def do_stuff(build_param, show_solution):
 
     cargs = parse_args(nbr_builds)
 
-    if cargs.all_builds and nbr_builds > 1:
+    if cargs.build == ALL:
         for bindex, build in enumerate(build_param):
             print_doc_str(build.__doc__)
             solve_it(cargs, build, bindex, show_solution)
@@ -460,7 +458,7 @@ def do_stuff(build_param, show_solution):
         return
 
     if isinstance(build_param, list):
-        build = build_param[cargs.build - 1]
+        build = build_param[int(cargs.build) - 1]
     else:
         build = build_param
 
@@ -474,4 +472,4 @@ def do_stuff(build_param, show_solution):
         run_the_choosers(cargs, build)
         return
 
-    solve_it(cargs, build, cargs.build - 1, show_solution)
+    solve_it(cargs, build, int(cargs.build) - 1, show_solution)
