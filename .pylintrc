@@ -1,7 +1,7 @@
 [BASIC]
 
 # these names are very clear in the context of the BattleBoats examples
-good-names-rgxs= (d)?[xy]
+good-names-rgxs= [tcd]?[xy]
 
 [MAIN]
 
@@ -41,4 +41,5 @@ disable=consider-using-assignment-expr,
 # List of valid magic values that `magic-value-compare` will not detect.
 # Supports integers, floats, negative numbers, for empty string enter ``''``,
 # for backslash values just use one backslash e.g \n.
-valid-magic-values=0,-1,1,2,3,,__main__
+valid-magic-values=0,-1,1,2,3,4,5,__main__,__test_example__
+
