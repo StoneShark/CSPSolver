@@ -8,5 +8,6 @@
     "EmptyCell": [3, 4],
     "EmptyCell": [3, 8],
     "EmptyCell": [6, 5],
-    "EmptyCell": [8, 1]
+    "EmptyCell": [8, 1],
+    "comment": "testing boat mids on edges"
 }

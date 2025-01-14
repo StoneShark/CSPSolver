@@ -6,5 +6,6 @@
     "Submarine" : [5, 3],
     "BoatLeft": [2, 9],
     "BoatRight": [9, 2],
-    "BoatBottom" : [2, 2]
+    "BoatBottom" : [2, 2],
+    "comment": "this puzzle has two solutions, testing boat ends facing edge"
 }

@@ -792,6 +792,9 @@ def build_cons(pairs, constraints):
 
     for name, value in pairs:
 
+        if name == 'comment':
+            continue
+
         if name == bboat.ROWSUM:
             for row, rsum in enumerate(value):
                 cons += [constraints[name](row + 1, rsum)]

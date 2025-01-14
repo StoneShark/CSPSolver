@@ -6,5 +6,6 @@
     "Submarine" : [6, 7],
     "BoatRight" : [4, 4],
     "BoatRight" : [8, 10],
-    "BoatMid" : [10, 7]
+    "BoatMid" : [10, 7],
+    "comment": "general testing"
 }
