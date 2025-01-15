@@ -64,18 +64,6 @@ CONT_ORIENT = (VERT, HORZ, VERT, HORZ)
 
 # %%  grid and boat helper functions
 
-
-def starts_using(x, y, blen):
-    """Return a set of domain values that use x, y when boat
-    length is blen"""
-
-    cells =  {(row, y, VERT) for row in range(max(1, y - blen + 1), y + 1)}
-    if blen > 1:
-        cells |= {(x, col, HORZ) for col in range(max(1, x - blen + 1), x + 1)}
-
-    return cells
-
-
 def cont_pos(loc, direction):
     """Return the grid loc for the continue position of a
     boat end at loc in direction."""
@@ -113,6 +101,7 @@ def grid_cross(x, y):
     return {(x, y - 1), (x, y + 1), (x + 1, y), (x - 1, y)}
 
 
+@ft.lru_cache(maxsize=64)
 def grid_neighs(x, y):
     """Return the cells that are neighbors to x, y.
     Can ignore edges if this is used in empty_cells,
@@ -127,6 +116,7 @@ def grid_neighs(x, y):
 @ft.lru_cache(maxsize=64)
 def get_end_loc(x, y, orient, boat_len):
     """Return the coord's of the end of the boat.
+    This will be the lower-rightmost point.
     RETURN int, int"""
 
     dx, dy = INCS[orient]

@@ -27,7 +27,7 @@ Constraints:
                 boat may extend in either direction
     * BoatSub - puzzle specifies a submarine (boat length of 1)
 
-python -O bboat_timer.py --extra --runs 20:  0.0554
+python -O bboat_timer.py --extra --runs 20:  0.0539
 
 Note:  x is used for the row number and y is used for
 the column number both 1..10.
@@ -520,7 +520,8 @@ class BBoatConstraint(cnstr.Constraint):
         sidx is the index of the row or column being
              scanned (static index, vidx is variable index)
 
-        Call only from forward_check (or rewrite to pass in var op).
+        Call only from forward_check (or rewrite to pass
+        in variable operation hide or remove).
 
         Return False as soon as we know the row/sum constraint
         cannot be met, otherwise return True.
@@ -583,8 +584,6 @@ class PropagateBBoat(BBoatConstraint):
         extra.empty_cells will catch any domains reduced to 1
         by the preprocessor methods."""
 
-        # TODO expand PropagateBBoat
-
         # make the domains match the extra data
         hide_set = {(x, y) for x in range(1, bboat.SIZE_P1)
                     for y in range(1, bboat.SIZE_P1)
@@ -612,8 +611,8 @@ class PropagateBBoat(BBoatConstraint):
                                                HIDE_FUNC, assignments)):
                     return False
 
-        # TODO unidentified boat parts, that are bound by water and 1 bpart, are ends
-        # do in loop above count water  -- AND actual cells
+        # XXXX unidentified boat parts that are bound by water and 1 bpart,
+        #  are ends (watch for errors on corners) - time saved likely not good
 
         return rval
 
@@ -834,70 +833,16 @@ class BoatEnd(BBoatConstraint, bboat_cnstr.BoatEnd):
 
         return rval
 
+    #  No need for BoatEnd.forward_check:
 
-    def _destroyer_end(self, assignments):
-        """Check for a destroyer at _loc based on water being two
-        away from open end.
-        There is no boat assigned at _loc.
+    #  The preprocessor places the end and sets an unidentified
+    #  boat part on the open end,
+    #  then RowSum/ColSum.forward_check -> boat_scan
+    #  will place the boat as soon as it is limited,
+    #  thus no need for extra testing
 
-        Return False if a variable is overconstrained,
-        otherwise, return True."""
-
-        # TODO this might never run, the preprocessor places
-        # the end and sets an unidentified boat part on the open end;
-        # then RowSum/ColSum will forward_check will place the boat.
-
-        x, y = self._loc
-
-        dx, dy = bboat.CONT_INCS[self._cont_dir]
-        cx, cy =  bboat.cont_pos(self._loc, self._cont_dir)
-
-        #  checking boat dir first, assures computed loc is on grid
-        if (self._cont_dir == bboat.LEFT
-                and EGrid.WATER in self.extra.grid[x + 2 * dx][y]):
-            destroyer_loc = (x , y, bboat.HORZ)
-
-        elif (self._cont_dir == bboat.RIGHT
-                and EGrid.WATER in self.extra.grid[x + 2 * dx][y]):
-            destroyer_loc = (cx , y, bboat.HORZ)
-
-        elif (self._cont_dir == bboat.UP
-                  and EGrid.WATER in self.extra.grid[x][y + 2 * dy]):
-            destroyer_loc = (x, cy, bboat.VERT)
-
-        elif (self._cont_dir == bboat.DOWN
-                  and EGrid.WATER in self.extra.grid[x][y + 2 * dy]):
-            destroyer_loc = (x, y, bboat.VERT)
-
-        else:
-            return True
-
-        # print("BoatEnd reducing domain")
-        if not self.reduce_to(destroyer_loc, 2, HIDE_FUNC, assignments):
-            return False
-
-        return True
-
-
-    def forward_check(self, assignments):
-        """Forward check for boat ends:
-
-        If there is water cell one away from the open end,
-        we have a destoryer location.
-
-        if a boat end, is not on 'edge' of water cells
-        (see grid bounds ends)
-        """
-        # TODO BoatEnd.forward_check what is that 2nd condition
-
-        x, y = self._loc
-        if (EGrid.ASSIGNED in self.extra.grid[x][y]
-                or EGrid.REDUCED in self.extra.grid[x][y]):
-            return True
-
-        rval = self._destroyer_end(assignments)
-
-        return rval
+    # BoatEnd.forward_check is in the git history, coverage
+    # testing showed that it never placed a boat
 
 
 class BoatMid(BBoatConstraint, bboat_cnstr.BoatMid):
