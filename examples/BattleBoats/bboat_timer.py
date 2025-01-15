@@ -20,8 +20,7 @@ import bboat_cnstr
 import bboat_extra
 import csp_solver as csp
 
-RUN_FIRST = 13
-NBR_RUNS_PER = 3
+NBR_RUNS_PER = 12
 
 
 def parse_command_line():
@@ -40,6 +39,10 @@ def parse_command_line():
 
     parser.add_argument('--all', action='store_true',
                         help="""Find all solutions.""")
+
+    parser.add_argument('--runs', action='store',
+                        type=int, default=NBR_RUNS_PER,
+                        help="""Number of runs per puzzle %(default)s.""")
 
     parser.add_argument('--progress', action='store_true',
                         help="""Show progress prints.""")
@@ -70,13 +73,19 @@ if __name__ == '__main__':
     else:
         solve_method = csp.Problem.get_solution
 
+    build_cnt = 0
 
-    for bnbr, build_func in enumerate(bb_puz_def[:RUN_FIRST]):
+    for bnbr, build_func in enumerate(bb_puz_def):
+
+        # run only the human currated puzzles
+        if 'test' in build_func.__name__:
+            continue
 
         if cargs.progress:
             print(f'\n{bnbr + 1} {puz}: ', build_func.__doc__)
+        build_cnt += 1
 
-        for nbr in range(NBR_RUNS_PER):
+        for nbr in range(cargs.runs):
 
             # the problem must be rebuilt for each solve
             # don't include that time
@@ -89,8 +98,9 @@ if __name__ == '__main__':
             if cargs.progress:
                 print(f'Run {nbr}: {time}')
 
-    ave_run_time = total / RUN_FIRST / NBR_RUNS_PER
-    print(f'\nAverage time per solve {ave_run_time} ({puz})')
+    ave_run_time = total / build_cnt / cargs.runs
+    print (f"\nTimed {build_cnt} puzzles ({cargs.runs} runs each) with {puz}.")
+    print(f'Average time per solve {ave_run_time}')
 
 
 if __name__ == '__test_example__':
