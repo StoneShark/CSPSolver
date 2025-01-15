@@ -1,0 +1,10 @@
+{
+    "RowSum" : [2, 2, 4, 2, 0, 3, 2, 4, 1, 0],
+    "ColSum" : [2, 2, 2, 0, 5, 2, 3, 0, 1, 3],
+    "BoatLeft" : [8, 6],
+    "BoatBottom" : [8, 2],
+    "BoatBottom" : [4, 1],
+    "BoatTop" : [7, 2],
+    "BoatMid" : [6, 6],
+    "comment": "puzzle has a battleship mid end pattern but end doesn't face mid"
+}

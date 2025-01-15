@@ -27,7 +27,10 @@ Constraints:
                 boat may extend in either direction
     * BoatSub - puzzle specifies a submarine (boat length of 1)
 
-python -O bboat_timer.py --extra:  0.0517 to 0.0521
+python -O bboat_timer.py --extra --runs 20:  0.0554
+
+Note:  x is used for the row number and y is used for
+the column number both 1..10.
 
 Created on Fri May  5 03:40:16 2023
 @author: Ann"""
@@ -105,6 +108,7 @@ class EGrid(enum.Flag):
     KNOWN_MASK = WATER | _ROUND | _MID | ENDS_MASK
 
 
+
     if not __debug__:
 
         def __contains__(self, other):
@@ -140,7 +144,6 @@ class EGrid(enum.Flag):
         """Return True if a new part must not be assigned."""
 
         return EGrid.WATER in self or EGrid.ASSIGNED in self
-        # TODO add reduced?
 
 
     def char(self):
@@ -238,6 +241,12 @@ class BBExtra(extra_data.ExtraDataIF):
         """Assign the EGrid value if it's ok and return True,
         else return False.
 
+        Don't change anything if assigning:
+          1. BOUNDARY to WATER (or BOUNDARY)
+          2. BOAT_PART to BOAT_PART
+          3. to a cell that is already identified as what,
+             i.e. don't change the flags
+
         This may be used by
           1. the preprocessor -- assignments are permanent.
           2. forward checks -- assignments will be popped along
@@ -247,14 +256,14 @@ class BBExtra(extra_data.ExtraDataIF):
                    BBExtra.assign that does a re-assignment
                 b. BBExtra.pop."""
 
-        if what == EGrid.BOUNDARY and EGrid.WATER in self.grid[x][y]:
-            return True
-
-        if (self.grid[x][y] & EGrid.KNOWN_MASK) == what:
+        cell_val = self.grid[x][y]
+        if ((what == EGrid.BOUNDARY and EGrid.WATER in cell_val)
+                or (what == EGrid.BOAT_PART and EGrid.BOAT_PART in cell_val)
+                or cell_val & EGrid.KNOWN_MASK == what):
             return True
 
         if self.grid[x][y].ok_to_assign(what):
-            self.grid[x][y] = what
+            self.grid[x][y] |= what
             return True
 
         return False
@@ -535,7 +544,7 @@ class BBoatConstraint(cnstr.Constraint):
                     bstart = (x, y, orient)
                     blen = 1
 
-            elif blen > 1 and (vidx == bboat.SIZE or EGrid.WATER in cell_val):
+            elif blen > 1 and EGrid.WATER in cell_val:
                 if not self.reduce_to(bstart, blen, HIDE_FUNC, assignments):
                     return False
                 blen = 0
@@ -543,6 +552,10 @@ class BBoatConstraint(cnstr.Constraint):
             else:
                 blen = 0
             prev = cell_val
+
+        if blen > 1 and EGrid.BOAT_PART in cell_val:
+            if not self.reduce_to(bstart, blen, HIDE_FUNC, assignments):
+                return False
 
         return True
 
@@ -792,7 +805,7 @@ class BoatEnd(BBoatConstraint, bboat_cnstr.BoatEnd):
         # print(f"{self}: Deduced boat {boat_len} at {boat_val}.")
 
         if not self.reduce_to(boat_val, boat_len):
-            raise cnstr.PreprocessConflict(str(self))
+            raise cnstr.PreprocessorConflict(str(self))
 
         if not self.extra.place_boat(self.extra.grid, boat_val, boat_len,
                                      flags=EGrid.REDUCED):
@@ -915,10 +928,10 @@ class BoatMid(BBoatConstraint, bboat_cnstr.BoatMid):
                 continue
 
             part = self.extra.grid[end_x][end_y]
-            if not EGrid.ENDS_MASK & part:  # any end in part
+            if not EGrid.ENDS_MASK & part:  # not an end part
                 continue
 
-            cont_dir = CONT_DIR_FROM_END[part & EGrid.RA_MASK]
+            cont_dir = CONT_DIR_FROM_END[part & ~EGrid.RA_MASK]
 
             # make certain that the part is facing us
             if ((cont_dir == bboat.LEFT and x < end_x)
@@ -950,31 +963,29 @@ class BoatMid(BBoatConstraint, bboat_cnstr.BoatMid):
             m2_x = x + dx
             m2_y = y + dy
 
-            if not (0 < m2_x < bboat.SIZE_P1 and 0 < m2_y < bboat.SIZE_P1):
-                continue
-
-            part = self.extra.grid[m2_x][m2_y]
-            if EGrid.MID not in part:
+            if (not (0 < m2_x < bboat.SIZE_P1 and 0 < m2_y < bboat.SIZE_P1)
+                    or EGrid.MID not in self.extra.grid[m2_x][m2_y]):
                 continue
 
             if dx == -1:
-                self._orient = bboat.HORZ
-                end_x = x
-                end_y = y - 2
-
-            elif dx == 1:
-                self._orient = bboat.HORZ
-                end_x = x
-                end_y = y - 1
-
-            elif dy == -1:
                 self._orient = bboat.VERT
                 end_x = x - 2
                 end_y = y
 
-            elif dy == 1:
+            elif dx == 1:
+                self._orient = bboat.VERT
                 end_x = x - 1
                 end_y = y
+
+            elif dy == -1:
+                self._orient = bboat.HORZ
+                end_x = x
+                end_y = y - 2
+
+            elif dy == 1:
+                self._orient = bboat.HORZ
+                end_x = x
+                end_y = y - 1
             break
 
         else:
@@ -1069,12 +1080,12 @@ class BoatMid(BBoatConstraint, bboat_cnstr.BoatMid):
         if self._orient == bboat.HORZ:
             bounds = {(x + 1, y + dy) for dy in range(-2, 3)}
             bounds |= {(x - 1, y + dy) for dy in range(-2, 3)}
-            parts = ((x + dy, y + dx), (x - dy, y - dx))
+            parts = ((x , y - 1), (x, y + 1))
 
         else:
             bounds = {(x + dx, y + 1) for dx in range(-2, 3)}
             bounds |= {(x + dx, y - 1) for dx in range(-2, 3)}
-            parts = ((x + dx, y + dy), (x - dx, y - dy))
+            parts = ((x - 1, y), (x + 1, y))
 
         for tx, ty in bounds:
             if (0 < tx < bboat.SIZE_P1 and 0 < ty < bboat.SIZE_P1
@@ -1215,6 +1226,10 @@ def build_all_puzzles():
     files = sorted(os.listdir(bboat.PUZ_PATH))
 
     for filename in files:
+
+        if filename[0] == '_':
+            continue
+
         func = build_puzzle(filename)
         if func:
             build_funcs += [func]

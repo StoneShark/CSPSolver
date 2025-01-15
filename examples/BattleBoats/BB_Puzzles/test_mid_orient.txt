@@ -1,0 +1,9 @@
+{
+    "RowSum" : [0, 5, 0, 4, 1, 1, 4, 2, 1, 2],
+    "ColSum" : [3, 2, 0, 2, 5, 2, 1, 2, 0, 3],
+    "BoatBottom" : [7, 10],
+    "BoatLeft" : [2, 4],
+    "BoatMid" : [9, 5],
+    "Submarine" : [2, 1],
+    "Submarine" : [10, 2]
+}
