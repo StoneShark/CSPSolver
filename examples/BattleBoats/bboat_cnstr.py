@@ -850,6 +850,10 @@ def build_all_puzzles():
     files = sorted(os.listdir(bboat.PUZ_PATH))
 
     for filename in files:
+
+        if filename[0] == '_':
+            continue
+
         func = build_puzzle(filename)
         if func:
             build_funcs += [func]
