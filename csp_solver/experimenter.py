@@ -47,7 +47,7 @@ def load_class_lists():
 
     global SOLVERS, VAR_CHOOSERS, ARC_CONSIST
 
-    SOLVERS = {slvr.__name__ : slvr() for slvr in solver.Solver.derived()}
+    SOLVERS = {slvr.__name__ : slvr for slvr in solver.Solver.derived()}
 
     VAR_CHOOSERS = {varc.__name__ : varc
                     for varc in var_chooser.VarChooser.derived()}
@@ -98,9 +98,10 @@ def build_the_problem(cargs, build):
     build(prob_inst)
 
     if cargs.solver not in DONT_SET:
-        prob_inst.solver = SOLVERS[cargs.solver]
+        prob_inst.solver = SOLVERS[cargs.solver]()
 
     if cargs.var_chooser not in DONT_SET:
+        # var choosers don't need to be instantiated
         prob_inst.var_chooser = VAR_CHOOSERS[cargs.var_chooser]
 
     if cargs.arc_consist not in DONT_SET:
