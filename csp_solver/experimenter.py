@@ -52,7 +52,7 @@ def load_class_lists():
     VAR_CHOOSERS = {varc.__name__ : varc
                     for varc in var_chooser.VarChooser.derived()}
 
-    ARC_CONSIST = {arc_con.__name__ : arc_con()
+    ARC_CONSIST = {arc_con.__name__ : arc_con
                    for arc_con in arc_consist.ArcConIF.derived()}
     ARC_CONSIST['none'] = None
 
@@ -104,7 +104,7 @@ def build_the_problem(cargs, build):
         prob_inst.var_chooser = VAR_CHOOSERS[cargs.var_chooser]
 
     if cargs.arc_consist not in DONT_SET:
-        prob_inst.arc_con = ARC_CONSIST[cargs.arc_consist]
+        prob_inst.arc_con = ARC_CONSIST[cargs.arc_consist]()
 
     set_forward(cargs, prob_inst)
 
