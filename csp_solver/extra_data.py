@@ -26,11 +26,20 @@ class ExtraDataIF(abc.ABC):
 
 
     @abc.abstractmethod
-    def assign(self, var, val):
+    def assign(self, var_name, value):
         """Reflect assigning val to var in the extra data.
-        This might be an update to an already assigned variable.
 
-        The solver will call this each time it makes an assignement.
+        The solver will call this each time it makes an
+        assignement (not all solvers have the extra data
+        feature integrated).
+
+        assign might be called with an update to an already
+        assigned variable, so it must handle not stacking an
+        extra assignment.
+
+        The domains of variables should not be changed.
+        This can be addressed by defining a new constraint
+        forward_checks based on the extra data.
 
         Return False if a conflict is detected, True otherwise.
         When returning False do not add the value!"""

@@ -231,7 +231,10 @@ class Solver(abc.ABC):
 # %%  recursive backtracking
 
 class Backtracking(Solver):
-    """Simple recursive backtracking solver."""
+    """Simple recursive backtracking solver.
+
+    Maybe used to find ONE, ALL or MORE_THAN_ONE solution(s).
+    Supports forward checking, arc consistency, and extra data."""
 
     def _forw_arc_processing(self, solutions, local_assigns, unassigned, vobj):
         """Do the forward process and arc consistency checking."""
@@ -318,7 +321,10 @@ class Backtracking(Solver):
 # %% non recursive backtracking
 
 class NonRecBacktracking(Solver):
-    """A backtracking solver that does not use recursion."""
+    """A backtracking solver that does not use recursion.
+
+    Maybe used to find ONE, ALL or MORE_THAN_ONE solution(s).
+    Supports forward checking, arc consistency, and extra data."""
 
     def __init__(self, forward_check=False, problem_spec=None):
         """Store some variables common to most methods.
@@ -504,8 +510,10 @@ class BareNRBack(NonRecBacktracking):
     """A backtracking solver that does not use recursion
     AND does not check for extra data, forward checking
     or arc consistency checking.
-    This eliminates testing if the option is used."""
+    This eliminates testing if the option is used.
 
+    Maybe used to find ONE, ALL or MORE_THAN_ONE solution(s).
+    Does not support forward checking, arc consistency, or extra data."""
 
     @NonRecBacktracking.arc_con.setter
     def arc_con(self, value):
@@ -569,13 +577,49 @@ class MinConflictsSolver(Solver):
     """Search for a solution by choosing a random solution
     then refining it by choosing a variable that violates a constraint,
     then choosing a new value for that variable that minimizes the
-    number of conflicts. Repeat until solution found (or max steps)."""
+    number of conflicts. Repeat until solution found (or max steps).
+
+    Warning: this solver may fail to find a solution when one exists.
+
+    Maybe only be used to find ONE solution.
+    Does not support var chooser, forward checking, arc consistency,
+    or extra data."""
 
 
     def __init__(self, steps=1000):
         """Save the number of steps."""
         super().__init__()
         self._steps = steps
+
+
+    @Solver.arc_con.setter
+    def arc_con(self, value):
+        """raise exception -- property may not be set"""
+        if value:
+            raise ValueError("MinConflictsSolver does not support arc consistency.")
+
+    @Solver.forward.setter
+    def forward(self, value):
+        """raise exception -- property may not be set"""
+        if value:
+            raise ValueError("MinConflictsSolver does not support forward checking.")
+
+    def enable_forward_check(self):
+        """raise exception -- property may not be set"""
+        raise ValueError("MinConflictsSolver does not support forward checking.")
+
+    @Solver.extra.setter
+    def extra(self, value):
+        """raise exception -- property may not be set"""
+        if value:
+            raise ValueError("MinConflictsSolver does not support extra data.")
+
+    @Solver.chooser.setter
+    def chooser(self, chooser):
+        """Not supported but cannot raise an exception
+        because the base code sets a default."""
+        if chooser:
+            print("MinConflictsSolver ignores var_chooser.")
 
 
     def _count_satisfied(self, assigns, vname, value):
@@ -693,7 +737,7 @@ class MinConflictsSolver(Solver):
         self._solve_type = solve_type
 
         if self._solve_type != SolveType.ONE:
-            raise NotImplementedError(
-                'MinConflictsSolver will only find one solution.')
+            raise ValueError(
+                'MinConflictsSolver only supports finding one solution.')
 
         return self._search_solution()

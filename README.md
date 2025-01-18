@@ -1,6 +1,6 @@
 # CSP Solver #
 
-The Constraint Satifaction Problem (CSP) Solver contains classes to represent and experiment with CSP problems. 
+The Constraint Satisfaction Problem (CSP) Solver contains classes to represent and experiment with CSP problems. 
 
 A CSP is defined by:
 
@@ -63,15 +63,22 @@ Additionally, a grouping of constraints may be applied with list constraints. Th
 - OneOfCList - require exactly one of the constraints be met
 - OrCList - require at least one of the constraints be met
 
+A unique solution constraint can be included in a problem definition which can be used to reject duplicate solutions (UniqueSolutionsIF). One use is when a problem statement requires several variables to represent the same kind of thing. Assignments that are permutations of each other can be rejected, see UniqueSets.
+
+## Extra Data ##
+
+A scratch pad (called extra_data) maybe employed. This is only useful when additional constraint classes are defined which use it (none of the built in constraints use extra_data). Whenever a solver (that has the extra_data feature integrated) assigns a variable, the extra_data class is told about it. The extra_data may be used in both preprocessor and forward_check routines in the derived constraints. BattleBoats shows a successful example of using the extra_data feature.
+
 ## Solvers ##
 
 Three solvers are provided:
 
 - Backtracking
 - NonRecBacktracking
+- BareNRBack
 - MinConflictsSolver
 
-Using the experimenter with "--solver all" with show a nominal comparison of the time required for each solver. More detailed timing can be selected with the "--timer" option and it's values.
+See the solver's comment for supported features. Using the experimenter with "--solver all" with show a nominal comparison of the time required for each solver. More detailed timing can be selected with the "--timer" option and it's values.
 
 ## Variable Chooser ##
 
@@ -82,12 +89,12 @@ Choosing the next variable to assign can greatly improve solver time. The follow
 - MinDomain - choose the variable with the smallest remaining domain next.
 - MaxDegree - choose the variable that is used in the most constraints next.
 - DegreeDomain - select the variable with the smallest domain from those with the largest degree (most constraints).  Sort order is maximum degree then minimum domain. This is the default var_chooser.
-- DomainDegree - select the variable with the largest domain from those with the smalled domain. Sort order is minimum domain then maximum degree.
+- DomainDegree - select the variable with the largest domain from those with the smaller domain. Sort order is minimum domain then maximum degree.
 - MaxAssignedNeighs - choose the variable listed in constraints along with other variables (neighbors) that have the most assigned values.
 
-Using the exerimenter with "--var_chooser all" will show a nominal comparison of the time required to with each chooser on the same problem.
+Using the experimenter with "--var_chooser all" will show a nominal comparison of the time required to with each chooser on the same problem.
 
 ## Compatibility ##
 CSP Solver requires only standard python 3.12 or later.
 
-A makefile provides some developement scripts. A couple optional targets in the makefile use grep. Pytest is the test environment with support from coverage, pytest-cov and pytest-mock.
+A makefile provides some development scripts. A couple optional targets in the makefile use grep. Pytest is the test environment with support from coverage, pytest-cov and pytest-mock.

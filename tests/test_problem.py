@@ -195,13 +195,16 @@ class TestProblem:
     def test_math_except(self, math_fixt):
 
         math_fixt.solver = solver.MinConflictsSolver()
-        with pytest.raises(NotImplementedError):
+        with pytest.raises(ValueError):
             math_fixt.get_all_solutions()
 
 
-    @pytest.mark.parametrize('slvr', solver.Solver.derived())
+    @pytest.mark.parametrize('slvr', [solver.Backtracking,
+                                      solver.NonRecBacktracking,
+                                      solver.BareNRBack])
     @pytest.mark.parametrize('vchsr', var_chooser.VarChooser.derived())
     def test_math_prob_one(self, math_fixt, slvr, vchsr):
+
 
         tsolver = slvr()
         math_fixt.solver = tsolver
