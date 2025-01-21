@@ -26,6 +26,24 @@ from csp_solver import solver
 from csp_solver import var_chooser
 
 
+# %%
+
+class TestDefSet:
+
+    def test_set(self):
+
+        slvr = csp.solver.Backtracking()
+
+        assert slvr._extra is None
+
+        with pytest.raises(ValueError):
+            slvr.extra = 5
+
+        with pytest.raises(ValueError):
+            slvr.chooser = object()
+
+
+
 # %%   test extra data
 
 class ExtraTrue(extra_data.ExtraDataIF):

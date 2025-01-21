@@ -23,7 +23,7 @@ from csp_solver import solver
 # %%
 
 
-GOOD_ARCCON = arc_consist.ArcConIF.__subclasses__()
+GOOD_ARCCON = arc_consist.ArcConIF.derived()
 
 class BadArcCon(arc_consist.ArcConIF):
     pass

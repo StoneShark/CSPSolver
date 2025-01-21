@@ -8,7 +8,7 @@ Created on Wed May  3 07:31:25 2023
 @author: Ann"""
 
 
-import collections as col
+import collections
 
 
 class Variable:
@@ -35,7 +35,7 @@ class Variable:
         self.name = name
         self._domain = list(values)
         self._hidden = []
-        self._nbr_remain = col.deque()
+        self._nbr_remain = collections.deque()
 
 
     def nbr_values(self):

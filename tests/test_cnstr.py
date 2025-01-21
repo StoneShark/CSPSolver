@@ -176,6 +176,14 @@ class TestFunc:
         assert vobjs_list[1].get_domain() == [3, 8]
         assert vobjs_list[2].get_domain() == []
 
+        # no current assignments apply to this constraint
+        # empty set or True is good answer
+        fc = cnstr.BoolFunction(lambda a, b, c: 2 * a == b + c, False)
+        fc.set_variables(vobjs_list)
+        rval = fc.forward_check({})
+        assert rval is not False
+        assert rval is True or rval == set()
+
         vobjs_list = stubs.make_vars([('var1', [3, 5, 6, 12]),
                                       ('var2', [3, 8]),
                                       ('var3', [3, 12])])
@@ -221,7 +229,7 @@ class TestAllDifferent:
     def test_all_diff(self):
 
         assignments = {'var1': 3}
-        assert cnstr.AllEqual().satisfied(assignments)
+        assert cnstr.AllDifferent().satisfied(assignments)
 
         assignments = {'var1': 3, 'var2': 6, 'var3': 9, 'var4': 10}
         assert cnstr.AllDifferent().satisfied(assignments)
@@ -263,6 +271,14 @@ class TestAllDifferent:
         assert vobjs_list[0].get_domain() == [3, 5, 12]
         assert vobjs_list[1].get_domain() == [3, 6]
         assert vobjs_list[2].get_domain() == []
+
+        # no vars defined for this constraint, forward_check is good
+        # empty set or True is good answer
+        fc = cnstr.AllDifferent()
+        fc.set_variables(vobjs_list)
+        rval = fc.forward_check({})
+        assert rval is not False
+        assert rval is True or rval == set()
 
 
 class TestAllEqual:
@@ -359,6 +375,13 @@ class TestAllEqual:
         assert vobjs_list[1].get_domain() == [3]
         assert vobjs_list[2].get_domain() == []
 
+        # no vars defined for this constraint, forward_check is good
+        # empty set or True is good answer
+        fc = cnstr.AllEqual()
+        fc.set_variables(vobjs_list)
+        rval = fc.forward_check({})
+        assert rval is not False
+        assert rval is True or rval == set()
 
 
 class TestInCnstr:
@@ -537,6 +560,8 @@ class TestLessThan:
          ({2 : 4}, {1}, [DFWD_B, DFWD_A], [[0], DFWD_A]),
          ({2 : 9}, {1}, [DFWD_B, DFWD_A], [[0, 4], DFWD_A]),
          ({2 : 10}, True, [DFWD_B, DFWD_A], [DFWD_B, DFWD_A]),
+
+         ({}, True, [DFWD_A, DFWD_B], [DFWD_A, DFWD_B]),
          ])
     def test_fwd_check(self, assign, exp_ret, sdoms, edoms):
 
@@ -633,6 +658,8 @@ class TestLessThanEqual:
          ({2 : 4}, {1}, [DFWD_B, DFWD_A], [[0, 4], DFWD_A]),
          ({2 : 9}, True, [DFWD_B, DFWD_A], [DFWD_B, DFWD_A]),
          ({2 : 10}, True, [DFWD_B, DFWD_A], [DFWD_B, DFWD_A]),
+
+         ({}, True, [DFWD_A, DFWD_B], [DFWD_A, DFWD_B]),
          ])
     def test_fwd_check(self, assign, exp_ret, sdoms, edoms):
 

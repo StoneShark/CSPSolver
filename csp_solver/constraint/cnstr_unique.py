@@ -39,13 +39,13 @@ class UniqueSets(UniqueSolutionsIF):
     sets of those values to be considered different
     solutions.
 
-    vname_sets is a list of lists of variables names.
+    vname_sets is a list of iterables of variables names.
     Each sublist represents a 'set' of the same kinds
     of things. If the value sets assigned to the variables
     of each sublist are all equal, then the the solution
     is a duplicate.
 
-    e.g. UniqueSets([['a', 'b'], ['c', 'd', 'e']])
+    Examples: UniqueSets([['a', 'b'], ['c', 'd', 'e']])
     defines that
        1. the set of values assigned to a and b must be unique
        2. the set of values assigned to c, d, and e must be unique
@@ -53,8 +53,8 @@ class UniqueSets(UniqueSolutionsIF):
     If {a: 2, b: 4, c: 3, d: 5, e: 7} is found, then
 
       {a: 4, b: 2, c: 3, d: 5, e: 7} is a duplicate (first set swapped values)
-      {a: 2, b: 4, c: 5, d: 3, e: 7} is a duplicate (second set swapped values)
-      {a: 4, b: 2, c: 5, d: 7, e: 3} is a duplicate (both sets swapped values)
+      {a: 2, b: 4, c: 3, d: 7, e: 5} is a duplicate (second set swapped values)
+      {a: 4, b: 2, c: 3, d: 7, e: 5} is a duplicate (both sets swapped values)
 
       {a: 2, b: 4, c: 4, d: 3, e: 7} is a NOT duplicate (c)
       {a: 2, b: 6, c: 5, d: 3, e: 7} is a NOT duplicate (b)
@@ -67,9 +67,13 @@ class UniqueSets(UniqueSolutionsIF):
                 'No variable name sets specified for UniqueSets.')
 
         if (not isinstance(vname_sets, list)
-                or not all(isinstance(vset, list) for vset in vname_sets)):
+                or not all(hasattr(vset, '__iter__') for vset in vname_sets)):
             raise cnstr_base.ConstraintError(
-                'Expected a list of lists of variable names')
+                'Expected a list of iterables of variable names.')
+
+        if any(len(vset) == 1 for vset in vname_sets):
+            raise cnstr_base.ConstraintError(
+                'Variable name sets of length 1 should not be included.')
 
         super().__init__()
         self._vname_sets = vname_sets
@@ -85,9 +89,24 @@ class UniqueSets(UniqueSolutionsIF):
 
 
     def solution_found(self, sol_dict):
-        """Save the value sets for the solution dictionary."""
+        """Save the value sets for the solution dictionary.
 
-        self._saved_solutions += [self._value_sets(sol_dict)]
+        Also check to see if there are any duplicate assignments
+        in the solution sets. The 'satisfied' test is only based
+        on the set of values collected:
+            assignments [2, 2, 4] yields set {2, 4} and
+            assignments [2, 4, 4] yields set {2, 4}
+        so the second solution will be considered a duplicate
+        (satisfied rejects it by returning False)."""
+
+        vsets = self._value_sets(sol_dict)
+        vlists = [[sol_dict[v] for v in vset] for vset in self._vname_sets]
+        if any(len(vset) < len(vlist) for vset, vlist in zip(vsets, vlists)):
+            print("UniqueSets.solution_found: found duplicate values "
+                  "in a variable set, unique solutions might be "
+                  "rejected as duplicates.")
+
+        self._saved_solutions += [vsets]
 
 
     def satisfied(self, assignments):

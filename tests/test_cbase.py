@@ -143,15 +143,16 @@ class TestGeneral:
             con.set_variables(vobjs_list)
 
 
-
 class TestBaseOps:
 
     @pytest.fixture
     def const(self, request):
-        """Request.param is a list of varaible name, domain
-        pairs"""
+        """Generate a simple constraint with variables.
+        Request.param is a list of varaible name, domain pairs"""
 
         class AllOdd(cnstr.Constraint):
+            """Simple constraint that makes cnstr.Constraint
+            not abstract. Don't put this in global scope"""
 
             def satisfied(self, assignments):
                 """True if all assignments are odd"""
@@ -219,3 +220,58 @@ class TestBaseOps:
         data = capsys.readouterr().out
         assert 'v1' in data
         assert 'v2' in data
+
+
+    HPARAMS = [
+        # leave one unassigned domain unchanged
+        [{'a': (2, 4, 5), 'b': (2, 4, 12, 15), 'c': (3, 1, 5)},
+         {'a': 4},
+         lambda vobj, val: val % 4,
+         {'b'},
+         {'b': (2, 15), 'c': (3, 1, 5)}],
+
+        # change both unassigned domains
+        [{'a': (2, 4, 5), 'b': (2, 4, 12, 15), 'c': (3, 1, 4, 5)},
+         {'a': 4},
+         lambda vobj, val: val % 4,
+         {'b', 'c'},
+         {'b': (2, 15), 'c': (3, 1, 5)}],
+
+        # domain for b will be overconstrained
+        # return False, current assignments wont work
+        # expected domains are don't care
+        [{'a': (2, 4, 5), 'b': (4, 12), 'c': (3, 1, 5)},
+         {'a': 4},
+         lambda vobj, val: val % 4,
+         False,
+         {}],
+        ]
+
+
+    @pytest.mark.parametrize('vdoms, assigns, good_test, echanges, edoms',
+                             HPARAMS)
+    def test_hide_bad(self, vdoms, assigns, good_test, echanges, edoms):
+        """Test the hide_bad_values method:
+
+        vdoms - dict of var: initial domain
+        assigns - current assignments as dict
+                  assigned var's domain should not be changed
+        good_test - lambda expr, return True for vals to keep
+        echanges - what variables should be changed
+        edoms - the expected domain changes"""
+
+        vobjs_list = stubs.make_vars(vdoms.items())
+        con = cnstr.AllDifferent()
+        con.set_variables(vobjs_list)
+
+        changes = con.hide_bad_values(assigns, good_test)
+        assert changes == echanges
+
+        if changes is False:
+            return
+
+        for vobj in vobjs_list:
+            if vobj.name in assigns:
+                assert vobj.get_domain() == list(vdoms[vobj.name])
+            else:
+                assert vobj.get_domain() == list(edoms[vobj.name])
