@@ -59,6 +59,8 @@ def load_class_lists():
 
 ALL = 'all'
 KEEP = 'keep'
+UNIQUE = 'unique'
+ONE = 'one'
 ON = 'on'
 OFF = 'off'
 
@@ -70,6 +72,7 @@ TIMEIT = 'timeit'
 
 TIMERS = ['none', PROFILE, TIMEIT_ONE, TIMEIT]
 FORWARDS = [ON, OFF, KEEP]
+SOLS = [ONE, UNIQUE, ALL]
 
 STD_INDENT = '    '
 
@@ -158,24 +161,24 @@ def run_the_solvers(cargs, build):
     for slvr in SOLVERS.values():
 
         prob_inst = build_the_problem(cargs, build)
-        prob_inst.solver = slvr
+        prob_inst.solver = slvr()
         set_forward(cargs, prob_inst)
         if first:
             print_prob_desc(cargs, build, prob_inst)
             print('Timing each solver (each might not find solution):')
             first = False
 
-        print(f'{slvr.__class__.__name__:25}',
+        print(f'{slvr.__name__:25}',
               f'{timeit.timeit(prob_inst.get_solution, number=1):10}')
 
 
 def solve_the_problem(cargs, prob_inst):
     """Solve the problem."""
 
-    if cargs.all:
+    if cargs.sol_type == ALL:
         return prob_inst.get_all_solutions()
 
-    if cargs.unique:
+    if cargs.sol_type == UNIQUE:
         return prob_inst.more_than_one_solution()
 
     return prob_inst.get_solution()
@@ -190,16 +193,16 @@ def build_and_solve(cargs, build):
 def print_results(show_solution, cargs, sol, bindex):
     """Decide what solutions to print."""
 
-    if cargs.all and sol:
+    if cargs.sol_type == ALL and sol:
         print(f'\nFound {len(sol)} solutions.')
 
-    elif cargs.unique:
+    elif cargs.sol_type == UNIQUE:
         if len(sol) == 1:
             print('\nSolution is unique.')
         else:
             print('\nThere is not a unique solution.')
 
-    elif not cargs.all and sol:
+    elif not cargs.sol_type == ALL and sol:
         if cargs.show_n:
             print('\n')
             show_solution(sol, bindex)
@@ -295,8 +298,8 @@ def define_parser(nbr_builds):
         If --timer is not used, the 'wall clock' time to compute the
         solution will be shown.
         |n
-        Only one 'all' type parameter may be used: --solver all,
-        --var_chooser all, --build all, or --all.
+        Only one 'all' value may be used: --solver, --var_chooser,
+        --build, or --sol_type.
         """,
         formatter_class=MultilineFormatter)
 
@@ -346,14 +349,12 @@ def define_parser(nbr_builds):
                         build function and the solver 100 times.
                         Default: %(default)s""")
 
-    parser.add_argument('--all', action='store_true',
-                        help="""Search for all the solutions.
-                            Cannot be used with --unique.
-                            Default: %(default)s""")
-
-    parser.add_argument('--unique', action='store_true',
-                        help="""Determine if there is more than one solution.
-                            Cannot be used with --all.
+    parser.add_argument('--sol_type', action='store',
+                        choices=SOLS, default='one',
+                        help="""Select solve approach:
+                            'one' find one solution, 'unique' determine if
+                            there is more than one solution, 'all' find all
+                            solutions.
                             Default: %(default)s""")
 
     parser.add_argument('--build', action='store',
@@ -386,15 +387,10 @@ def parse_args(nbr_builds):
         parser.print_help()
         sys.exit()
 
-    if cargs.all and cargs.unique:
-        print('--all and --unique cannot be used together.')
-        sys.exit()
-
-    if ((cargs.all or cargs.unique)
+    if (cargs.sol_type in (ALL, UNIQUE)
             and cargs.solver == solver.MinConflictsSolver.__name__):
         print('MinConflictsSolver can only find one solution.')
-        cargs.all = False
-        cargs.unique = False
+        cargs.sols = ONE
 
     if (cargs.solver == solver.MinConflictsSolver.__name__
             and cargs.var_chooser != KEEP):
@@ -404,7 +400,7 @@ def parse_args(nbr_builds):
     if (cargs.forward == OFF
             and cargs.arc_consist != KEEP
             and ARC_CONSIST[cargs.arc_consist]):
-        print("Arc Consistency behavior is not well defined without --forward.")
+        print("Arc Consistency behavior is not well defined without --forward on.")
 
     if cargs.build == ALL and nbr_builds == 1:
         cargs.build = '1'
@@ -412,7 +408,7 @@ def parse_args(nbr_builds):
     all_count = [cargs.build == ALL,
                  cargs.var_chooser == ALL,
                  cargs.solver == ALL,
-                 cargs.all].count(True)
+                 cargs.sol_type == ALL].count(True)
     if all_count > 1:
         print("Only one ALL type option may be selected.")
         sys.exit()
