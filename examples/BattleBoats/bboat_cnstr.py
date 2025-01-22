@@ -147,7 +147,7 @@ class IncOrder(cnstr.OneOrder):
         min_loc = assignments[last_bname]
 
         for vobj in unassigned:
-            for val in vobj.get_domain()[:]:
+            for val in vobj.get_domain_copy():
                 if val[:2] <= min_loc:
 
                     if not vobj.hide(val):
@@ -218,7 +218,7 @@ class RowSum(cnstr.Constraint):
             if bboat.BOAT_LENGTH[vobj.name] <= self._row_sum:
                 continue
 
-            for value in vobj.get_domain()[:]:
+            for value in vobj.get_domain_copy():
                 x, y, orient = value
 
                 if (x == self._row
@@ -326,7 +326,7 @@ class ColSum(cnstr.Constraint):
             if bboat.BOAT_LENGTH[vobj.name] <= self._col_sum:
                 continue
 
-            for value in vobj.get_domain()[:]:
+            for value in vobj.get_domain_copy():
                 x, y, orient = value
 
                 if (y == self._col
@@ -538,7 +538,7 @@ class BoatEnd(cnstr.Constraint):
             if not bboat.remove_starts_ends(bobj, {cont_pos}):
                 raise cnstr.PreprocessorConflict(str(self))
 
-            for value in bobj.get_domain()[:]:
+            for value in bobj.get_domain_copy():
                 x, y, orient = value
                 if (self._loc in bboat.grids_mid(x, y, orient, length)
                         and not bobj.remove_dom_val(value)):

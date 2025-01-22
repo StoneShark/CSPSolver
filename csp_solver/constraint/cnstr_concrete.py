@@ -72,7 +72,7 @@ class BoolFunction(cnstr_base.Constraint):
             vobj = None
 
         rval = True
-        for value in vobj.get_domain()[:]:
+        for value in vobj.get_domain_copy():
 
             if not self.satisfied(assignments | {vobj.name: value}):
                 rval = {vobj.name}
@@ -205,7 +205,7 @@ class InValues(cnstr_base.Constraint):
         RETURN - True - constraint always fully applied"""
 
         for vobj in self._vobjs:
-            for value in vobj.get_domain()[:]:
+            for value in vobj.get_domain_copy():
                 if value not in self._good_vals:
                     vobj.remove_dom_val(value)
 
@@ -242,7 +242,7 @@ class NotInValues(cnstr_base.Constraint):
         RETURN - True - constraint always fully applied"""
 
         for vobj in self._vobjs:
-            for value in vobj.get_domain()[:]:
+            for value in vobj.get_domain_copy():
                 if value in self._bad_vals:
                     vobj.remove_dom_val(value)
 
@@ -307,11 +307,11 @@ class LessThan(cnstr_base.Constraint):
         min_dom1 = min(vobj1.get_domain())
         max_dom2 = max(vobj2.get_domain())
 
-        for val in vobj1.get_domain()[:]:
+        for val in vobj1.get_domain_copy():
             if val >= max_dom2:
                 vobj1.remove_dom_val(val)
 
-        for val in vobj2.get_domain()[:]:
+        for val in vobj2.get_domain_copy():
             if val <= min_dom1:
                 vobj2.remove_dom_val(val)
 
@@ -331,7 +331,7 @@ class LessThan(cnstr_base.Constraint):
         if self._vnames[0] in assignments:
             val1 = assignments[self._vnames[0]]
 
-            for val2 in self._vobjs[1].get_domain()[:]:
+            for val2 in self._vobjs[1].get_domain_copy():
 
                 if val1 >= val2:
                     change = True
@@ -344,7 +344,7 @@ class LessThan(cnstr_base.Constraint):
 
         val2 = assignments[self._vnames[1]]
 
-        for val1 in self._vobjs[0].get_domain()[:]:
+        for val1 in self._vobjs[0].get_domain_copy():
 
             if val1 >= val2:
                 change = True
@@ -391,11 +391,11 @@ class LessThanEqual(cnstr_base.Constraint):
         min_dom1 = min(vobj1.get_domain())
         max_dom2 = max(vobj2.get_domain())
 
-        for val in vobj1.get_domain()[:]:
+        for val in vobj1.get_domain_copy():
             if val > max_dom2:
                 vobj1.remove_dom_val(val)
 
-        for val in vobj2.get_domain()[:]:
+        for val in vobj2.get_domain_copy():
             if val < min_dom1:
                 vobj2.remove_dom_val(val)
 
@@ -415,7 +415,7 @@ class LessThanEqual(cnstr_base.Constraint):
         if self._vnames[0] in assignments:
             val1 = assignments[self._vnames[0]]
 
-            for val2 in self._vobjs[1].get_domain()[:]:
+            for val2 in self._vobjs[1].get_domain_copy():
 
                 if val1 > val2:
                     change = True
@@ -428,7 +428,7 @@ class LessThanEqual(cnstr_base.Constraint):
 
         val2 = assignments[self._vnames[1]]
 
-        for val1 in self._vobjs[0].get_domain()[:]:
+        for val1 in self._vobjs[0].get_domain_copy():
 
             if val1 > val2:
                 change = True

@@ -273,7 +273,7 @@ class Backtracking(Solver):
         vobj = self._chooser.choose(unassigned, self._spec, assignments)
         unassigned.remove(vobj)
 
-        for value in vobj.get_domain()[:]:
+        for value in vobj.get_domain_copy():
 
             local_assigns = assignments | {vobj.name : value}
             if not self._assign_extra(vobj.name, value):
@@ -373,7 +373,7 @@ class NonRecBacktracking(Solver):
                                         self._assignments)
 
             var_name = vobj.name
-            values = vobj.get_domain()[:]
+            values = vobj.get_domain_copy()
             self._unassigned.remove(vobj)
 
         return var_name, values
@@ -680,7 +680,7 @@ class MinConflictsSolver(Solver):
 
         value = assignments[var_name]
 
-        domain = self._spec.variables[var_name].get_domain()[:]
+        domain = self._spec.variables[var_name].get_domain_copy()
         domain.remove(value)
 
         mincount = self._count_conflicts(assignments)

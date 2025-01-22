@@ -39,6 +39,11 @@ class TestVariable:
 
 
     def test_domain_const(self):
+        """Confirm that the domain list passed to the
+        Variable constructor is independent in each
+        variable. That it, the same list may be used
+        to create multiple variables and they will not
+        effect eachother."""
 
         domain = list(range(10))
         tvar1 = csp.Variable('var_name', domain)
@@ -63,6 +68,16 @@ class TestVariable:
         domain = [0, 1, 2]
         tvar1.set_domain(domain)
         assert tvar1.get_domain() == [0, 1, 2]
+
+
+    def test_domain_copy(self):
+
+        domain = list(range(10))
+        tvar1 = csp.Variable('var_name', domain)
+
+        assert tvar1.get_domain() is tvar1._domain
+        assert tvar1.get_domain() == tvar1.get_domain_copy()
+        assert tvar1.get_domain_copy() is not tvar1._domain
 
 
     @pytest.mark.parametrize('rval, exp',

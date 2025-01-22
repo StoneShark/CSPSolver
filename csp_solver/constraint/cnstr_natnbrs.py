@@ -45,7 +45,7 @@ class MaxSum(cnstr_base.Constraint):
             return True
 
         for vobj in self._vobjs:
-            for value in vobj.get_domain()[:]:
+            for value in vobj.get_domain_copy():
                 if value > self._maxsum:
                     vobj.remove_dom_val(value)
 
@@ -110,7 +110,7 @@ class ExactSum(cnstr_base.Constraint):
             return True
 
         for vobj in self._vobjs:
-            for value in vobj.get_domain()[:]:
+            for value in vobj.get_domain_copy():
                 if value > self._exactsum:
                     vobj.remove_dom_val(value)
 

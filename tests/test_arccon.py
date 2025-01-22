@@ -207,8 +207,8 @@ class TestArcCon3Boris:
         arccon = prob_fixt._solver.arc_con
         arcs = arccon._get_arcs()
 
-        dom1 = arccon._spec.variables[vname1].get_domain().copy()
-        dom2 = arccon._spec.variables[vname2].get_domain().copy()
+        dom1 = arccon._spec.variables[vname1].get_domain_copy()
+        dom2 = arccon._spec.variables[vname2].get_domain_copy()
 
         cons = arcs[(vname1, vname2)]
         rval = arccon._arc_reduce(cons, vname1, vname2)

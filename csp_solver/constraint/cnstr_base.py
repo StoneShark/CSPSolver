@@ -198,7 +198,7 @@ class Constraint(ConstraintIF):
         applied now by removing values from the domain that don't meet
         constraint."""
 
-        for value in vobj.get_domain()[:]:
+        for value in vobj.get_domain_copy():
             if not self.satisfied({vobj: value}):
                 vobj.remove_dom_val(value)
 
@@ -316,7 +316,7 @@ class Constraint(ConstraintIF):
             if vobj.name in assignments:
                 continue
 
-            for value in vobj.get_domain()[:]:
+            for value in vobj.get_domain_copy():
                 if good_test(vobj, value):
                     continue
 

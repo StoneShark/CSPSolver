@@ -347,7 +347,7 @@ def remove_starts(bobj, no_start):
     """Remove any domain values whose location is in no_start.
     Not sure this is useful for any bobj other than subs."""
 
-    for value in bobj.get_domain()[:]:
+    for value in bobj.get_domain_copy():
         if (value[0], value[1]) in no_start:
 
             if not bobj.remove_dom_val(value):

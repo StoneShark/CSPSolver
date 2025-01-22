@@ -45,10 +45,17 @@ class Variable:
 
 
     def get_domain(self):
-        """Return the domain values. If using in a list which will
-        change the domain be sure to do a shallow copy with [:]."""
+        """Return the domain values. This is not safe to be used
+        in for loops that might modify the domain"""
 
         return self._domain
+
+
+    def get_domain_copy(self):
+        """Return a copy of the domain values, suitable for use
+        in a loop that might modified the domain."""
+
+        return self._domain[:]
 
 
     def set_domain(self, values):

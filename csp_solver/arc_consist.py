@@ -162,7 +162,7 @@ class ArcCon3(ArcConIF):
 
         dom2 = vobj2.get_domain()
 
-        for val1 in vobj1.get_domain()[:]:
+        for val1 in vobj1.get_domain_copy():
 
             if not self._any_value_sats(cons, vn1, val1, vn2, dom2):
                 if not vobj1.hide(val1):

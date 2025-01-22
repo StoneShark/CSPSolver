@@ -441,7 +441,7 @@ class BBoatConstraint(cnstr.Constraint):
             # print(f"Reduce_to didn't find boat {self}")
             return False
 
-        for value in bobj.get_domain()[:]:
+        for value in bobj.get_domain_copy():
             if value != boat_loc and not func(bobj, value):
                 return False
 

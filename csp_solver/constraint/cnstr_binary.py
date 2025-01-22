@@ -93,7 +93,7 @@ class BoolBinOpConstraint(cnstr_base.Constraint):
         A set with the variable name in it, if a change was made."""
 
         rval = True
-        for value in unassigned_var.get_domain()[:]:
+        for value in unassigned_var.get_domain_copy():
             if value != required_val:
 
                 rval = {unassigned_var.name}
