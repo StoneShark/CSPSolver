@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Test the csp_solver.Problem class.
+"""Test the csp_solver.Problem and ProblemSpec classes.
 
 Created on Thu May 11 08:31:07 2023
 @author: Ann"""
@@ -24,21 +24,33 @@ import stubs
 
 class TestProblem:
 
+    @pytest.fixture
+    def test_prob(self):
+        return csp.Problem()
 
-    def test_builds(self):
 
-        test_prob = csp.Problem()
+    def test_defaults(self, test_prob):
+        """This sets the stage for other tests that confirm a value
+        is changed. If chaning a default, recheck the tests below
+        to confirm they still actually do a test."""
 
-        # check default properties and names
         assert 'Backtracking' in str(test_prob.solver)
         assert 'DegreeDomain' in str(test_prob.var_chooser)
         assert not test_prob.forward_check
         assert not test_prob.extra_data
         assert not test_prob.arc_con
 
+        assert test_prob.pspec == test_prob._spec
+        assert not test_prob._spec.usol_cnstr
+        assert test_prob._spec.variables == {}
+        assert test_prob._spec.constraints == []
+
         assert test_prob.solver_name() == 'Backtracking'
         assert test_prob.var_chooser_name() == 'DegreeDomain'
         assert test_prob.arc_con_name() == None
+
+
+    def test_vars(self, test_prob):
 
         test_prob.add_variable('a', [1,2,3,4])
         assert test_prob._spec.variables['a'].get_domain() == [1,2,3,4]
@@ -55,6 +67,30 @@ class TestProblem:
         assert test_prob._spec.variables['c'].get_domain() == [False, True]
         assert test_prob._spec.variables['d'].get_domain() == [False, True]
 
+
+    def test_uniq_cnstr(self, test_prob):
+
+        test_prob.add_variable('a', [1,2,3,4])
+        test_prob.add_variables('bcd', [False, True])
+
+        # must usol must have correct IF class
+        with pytest.raises(ValueError):
+            test_prob.set_unique_sol_constraint(object(), 'abcd')
+
+        con = cnstr.UniqueSets(['ab', 'cd'])
+        test_prob.set_unique_sol_constraint(con, 'abcd')
+        assert test_prob._spec.usol_cnstr == con
+
+        # don't allow setting second unique sol cnstr
+        with pytest.raises(ValueError):
+            test_prob.set_unique_sol_constraint(con, 'abcd')
+
+
+    def test_cnstrs(self, test_prob):
+
+        test_prob.add_variable('a', [1,2,3,4])
+        test_prob.add_variables('bcd', [False, True])
+
         # add a bad constraint
         with pytest.raises(ValueError):
             test_prob.add_constraint(5, 'ab')
@@ -70,12 +106,18 @@ class TestProblem:
         with pytest.raises(ValueError):
             test_prob.add_constraint(con, 'de')
 
+
+    def test_lcnstrs(self, test_prob):
+
+        test_prob.add_variable('a', [1,2,3,4])
+        test_prob.add_variables('bcd', [False, True])
+
         # add a valid list constraint
         test_prob.add_list_constraint(lcnstr.AtLeastNCList(2),
                                        [(lambda a, b : a*2 == b, 'ab'),
                                         (cnstr.MaxSum(4), 'abc'),
                                         (cnstr.AllDifferent(), 'ad')] )
-        assert isinstance(test_prob._spec.constraints[2],
+        assert isinstance(test_prob._spec.constraints[0],
                           lcnstr.ListConstraint)
 
         # test adding a list constraint with only 1 constraint -- bad
@@ -95,13 +137,8 @@ class TestProblem:
                                            [(lambda a, b : a*2 == b, 'ab'),
                                            (cnstr.AllDifferent(), 'ad')] )
 
-        with pytest.raises(ValueError):
-            test_prob.var_chooser = object()
 
-
-    def test_nat_nums(self):
-
-        test_prob = csp.Problem()
+    def test_nat_nums(self, test_prob):
 
         test_prob.add_variable('a', [1, 2, 3, 4])
         test_prob.add_variable('b', [6, 7, -8, 9])
@@ -112,25 +149,24 @@ class TestProblem:
             test_prob._spec.natural_numbers_required()
 
 
-    def test_setters(self):
-        """exercise the error checking and setting of properties
-        into the solver."""
+    def test_set_vchooser(self, test_prob):
 
-        test_prob = csp.Problem()
-
-        assert 'Backtracking' in str(test_prob.solver)
-        assert 'DegreeDomain' in str(test_prob._solver.chooser)
-        assert not test_prob._solver.forward
-        assert not test_prob._solver.extra
-        assert not test_prob._solver.arc_con
+        with pytest.raises(ValueError):
+            test_prob.var_chooser = object()
 
         test_prob.var_chooser = var_chooser.UseFirst
         assert test_prob.var_chooser == var_chooser.UseFirst
         assert test_prob._solver.chooser == var_chooser.UseFirst
 
+
+    def test_set_forward(self, test_prob):
+
         test_prob.forward_check = True
         assert test_prob.forward_check
         assert test_prob._solver.forward
+
+
+    def test_set_extra(self, test_prob):
 
         with pytest.raises(ValueError):
             test_prob.extra_data = 5
@@ -138,14 +174,31 @@ class TestProblem:
         test_prob.extra_data = stubs.ExtraData()
         assert isinstance(test_prob._solver.extra, stubs.ExtraData)
 
+
+    def test_set_arc_con(self, test_prob):
+
+        test_prob.arc_con = None
+        assert test_prob._solver.arc_con == None
+
         with pytest.raises(ValueError):
             test_prob.arc_con = 5
 
         test_prob.arc_con = arc_consist.ArcCon3()
         assert isinstance(test_prob._solver.arc_con, arc_consist.ArcCon3)
 
+
+    def test_set_solver(self, test_prob):
+        """Test that when the solver is changed all previously
+        set options are copied."""
+
         with pytest.raises(ValueError):
             test_prob.solver = 5
+
+        # init data in default solver
+        test_prob.forward_check = True
+        test_prob.var_chooser = var_chooser.UseFirst
+        test_prob.extra_data = stubs.ExtraData()
+        test_prob.arc_con = arc_consist.ArcCon3()
 
         # constructed with defaults
         new_solver = solver.NonRecBacktracking()
@@ -164,9 +217,7 @@ class TestProblem:
 
 
     @pytest.fixture
-    def math_fixt(self):
-
-        test_prob = csp.Problem()
+    def math_fixt(self, test_prob):
 
         test_prob.add_variable('a', [1, 2, 3, 4])
         test_prob.add_variable('b', [1, 2, 5, 6])
@@ -220,10 +271,8 @@ class TestProblem:
 
 
     @pytest.fixture
-    def math_no_fixt(self):
+    def math_no_fixt(self, test_prob):
         """3 vars prevents the preprocessor from doing anything."""
-
-        test_prob = csp.Problem()
 
         test_prob.add_variable('a', [2,4])
         test_prob.add_variable('b', [1,2,5,6])
@@ -245,9 +294,7 @@ class TestProblem:
 
 
     @pytest.fixture
-    def math_two_fixt(self):
-
-        test_prob = csp.Problem()
+    def math_two_fixt(self, test_prob):
 
         test_prob.add_variable('a', [1, 2, 3, 4])
         test_prob.add_variable('b', [6, 7, 8, 9])
@@ -280,6 +327,7 @@ class TestProblem:
         assert {sol['b'] for sol in solutions} == {6, 8, 9}
 
         math_two_fixt.print_domains()
+        math_two_fixt.print_constraints()
 
 
     @pytest.mark.parametrize('slvr', [solver.Backtracking(),
